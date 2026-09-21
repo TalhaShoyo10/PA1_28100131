@@ -1,0 +1,22 @@
+# DAN - MMD alignment (Task 2 step 2).
+#
+#   L_DAN = L_cls + lambda_mmd * MMD^2(F(x_s), F(x_t))
+#
+# MMD is applied to the 512-d feature immediately before the classifier head.
+# Kernel: sum of three RBF kernels with bandwidths 0.5x, 1x and 2x the median
+# pairwise squared feature distance in the CURRENT combined batch (recomputed
+# per batch, not fixed globally).
+
+defaults: base.yaml
+
+run_name: dan
+
+method:
+  name: dan
+  uses_target_during_training: true   # unlabeled target features only
+  lambda_mmd: 1.0                     # main comparison value
+  mmd:
+    kernel: rbf
+    bandwidth_multipliers: [0.5, 1.0, 2.0]
+    bandwidth_estimator: median_pairwise_sq_distance
+    feature: pre_classifier            # 512-d

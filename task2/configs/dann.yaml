@@ -1,0 +1,28 @@
+# DANN - adversarial alignment (Task 2 step 3).
+#
+# A binary domain discriminator (256-unit hidden layer, ReLU, dropout 0.5,
+# 2-class output) attached to the same 512-d feature, with a gradient-reversal
+# layer sending the opposite gradient to the backbone.
+#
+# Schedule:  alpha(p) = 2 / (1 + exp(-10p)) - 1,  p in [0,1] = training progress.
+# Only SOURCE examples contribute to the class loss; BOTH source and target
+# contribute to the domain loss. Loss weight on the domain term is 1.0.
+
+defaults: base.yaml
+
+run_name: dann
+
+method:
+  name: dann
+  uses_target_during_training: true   # unlabeled target, domain label only
+  discriminator:
+    input: pre_classifier             # 512-d feature
+    hidden_dim: 256
+    activation: relu
+    dropout: 0.5
+    output_dim: 2
+  grl:
+    schedule: dann_standard           # 2/(1+exp(-10p)) - 1
+    gamma: 10.0
+    alpha_max: 1.0                    # varied only in the controlled study
+  lambda_domain: 1.0

@@ -1,0 +1,15 @@
+# Source-only ERM baseline (Task 2 step 1).
+#
+# Cross-entropy over the three labeled source domains with domain-balanced
+# batches. No target images are loaded during training at all.
+#
+# IMPORTANT: this same checkpoint is reused UNCHANGED as the Task 3 ERM
+# baseline. Do not retrain it under a different configuration.
+
+defaults: base.yaml
+
+run_name: source_only
+
+method:
+  name: source_only
+  uses_target_during_training: false

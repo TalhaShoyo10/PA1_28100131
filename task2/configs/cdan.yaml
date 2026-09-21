@@ -1,0 +1,34 @@
+# CDAN - class-conditional adversarial alignment (Task 2 step 4).
+#
+# The discriminator receives the multilinear map of feature and prediction:
+#
+#   g(x) = vec(f ⊗ p),   f = F(x) in R^512,  p = C(f) in R^7   ->  3584-d
+#
+# Same hidden width, activation, dropout, GRL schedule and loss weight as DANN.
+#
+# Assignment constraint: do NOT use entropy conditioning, and do NOT detach
+# f or p. Gradients flow through both branches into the backbone and head.
+
+defaults: base.yaml
+
+run_name: cdan
+
+method:
+  name: cdan
+  uses_target_during_training: true
+  conditioning:
+    type: multilinear                 # vec(f ⊗ p)
+    entropy_conditioning: false       # explicitly forbidden
+    detach_feature: false             # explicitly forbidden
+    detach_predictions: false         # explicitly forbidden
+    input_dim: 3584                   # 512 * 7
+  discriminator:
+    hidden_dim: 256
+    activation: relu
+    dropout: 0.5
+    output_dim: 2
+  grl:
+    schedule: dann_standard
+    gamma: 10.0
+    alpha_max: 1.0
+  lambda_domain: 1.0

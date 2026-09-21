@@ -1,0 +1,71 @@
+# Task 2 (UDA) shared protocol - PACS, Sketch as target.
+#
+# Every setting here is fixed by the assignment and MUST stay identical across
+# Source-only, DAN, DANN and CDAN. Method configs inherit this file and may
+# override ONLY their `method:` block. Any other override is a protocol
+# deviation and must be recorded in progress.md.
+
+task: task2
+seed: 6304
+
+data:
+  name: pacs
+  root: data/PACS                # not committed; see README for download
+  sources: [photo, art_painting, cartoon]
+  target: sketch
+  num_classes: 7
+  split_seed: 6304
+  val_fraction: 0.2              # stratified 80/20 within each source domain
+  split_manifest: shared/splits/pacs_sketch_seed6304.json
+  resize: 256
+  crop: 224
+  hflip: true                    # train-time only
+  # Center-crop 224 for validation and evaluation; normalization comes from
+  # the pretrained ResNet18_Weights.IMAGENET1K_V1 transforms.
+
+model:
+  backbone: resnet18
+  weights: ResNet18_Weights.IMAGENET1K_V1
+  feature_dim: 512
+  # Assignment BatchNorm policy: freeze running mean/var at pretrained values
+  # for EVERY method in Tasks 2 and 3; gamma/beta stay trainable. After
+  # model.train(), BN modules alone are put in eval mode.
+  freeze_bn_stats: true
+
+train:
+  epochs: 30                     # maximum
+  optimizer: adamw
+  lr: 1.0e-4
+  weight_decay: 1.0e-4
+  source_batch_per_domain: 8     # 8 x 3 domains = 24 source examples
+  target_batch: 24               # equal total source and target batch sizes
+  early_stopping_patience: 5     # epochs without mean source-val macro-F1 gain
+  num_workers: 2
+
+selection:
+  # Checkpoints are selected by mean macro-F1 across the three source
+  # validation splits. Target labels are NEVER consulted here.
+  metric: mean_source_val_macro_f1
+  mode: max
+
+evaluation:
+  # Target labels are used only after all checkpoints and settings are frozen.
+  domain_separability:
+    split_seed: 6304
+    test_fraction: 0.3           # 70/30 split
+    classifier: logistic_regression
+    C: 1.0
+    class_weight: balanced
+    chance: 50.0                 # source vs target is binary
+
+output:
+  results_dir: task2/results
+  checkpoint_dir: checkpoints/task2
+  figures_dir: figures/task2
+
+smoke:
+  # Reduced-scale sanity settings used only with --smoke. Never for reported
+  # results.
+  epochs: 1
+  max_batches_per_epoch: 3
+  limit_images_per_domain: 64

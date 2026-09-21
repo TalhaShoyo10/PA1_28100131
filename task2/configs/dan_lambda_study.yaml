@@ -1,0 +1,35 @@
+# Controlled design study (Task 2 step 6): vary lambda_MMD for DAN.
+#
+# Selected study: lambda_MMD in {0.1, 1, 10}. Every other setting is held
+# fixed at base.yaml / dan.yaml values.
+#
+# Pre-registered expectations (stated BEFORE looking at any target result):
+#   - Source validation performance: expected to DEGRADE as lambda grows,
+#     because the MMD penalty competes with cross-entropy for capacity and at
+#     lambda=10 should dominate the gradient.
+#   - Domain separability: expected to FALL as lambda grows -- that is exactly
+#     what the penalty optimises -- approaching 50% (chance) at lambda=10.
+#   - Target recognition: expected to be NON-MONOTONE, peaking near lambda=1.
+#     Too little alignment leaves the domain gap intact; too much enforces
+#     marginal matching that can mix classes across domains (Zhao et al. 2019).
+#
+# These target results are for ANALYSIS ONLY and may not be used to revise the
+# main comparison, which stays at lambda_MMD = 1.
+#
+# Run one value per invocation, e.g.:
+#   python task2/train.py --config task2/configs/dan_lambda_study.yaml \
+#       --set method.lambda_mmd=0.1 run_name=dan_lambda0.1
+
+defaults: dan.yaml
+
+run_name: dan_lambda_study
+
+study:
+  name: lambda_mmd_sweep
+  parameter: method.lambda_mmd
+  values: [0.1, 1.0, 10.0]
+  # Matched against task3/configs/dan_dg_lambda_study.yaml, which sweeps the
+  # identical MMD mechanism WITHOUT target access. The pairing supports Task 3
+  # RQ4 (value of unlabeled Sketch) at matched alignment pressure.
+  matched_with: task3/configs/dan_dg_lambda_study.yaml
+  analysis_only: true
