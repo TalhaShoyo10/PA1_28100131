@@ -39,9 +39,7 @@ task2/       UDA: Source-only, DAN, DANN, CDAN
 task3/       DG: ERM (reused), DAN-DG, SAM
 task4/       OSR: Vanilla, GCSC, PROSER, post-hoc scores
 tests/       322 tests covering protocol compliance and method behaviour
-docs/        design notes and explanations for each module
 figures/     generated figures
-report/      report-support artifacts
 ```
 
 Raw datasets and checkpoints are **not** committed. See *Datasets* below.
@@ -78,8 +76,17 @@ python shared/make_splits.py --config task2/configs/base.yaml
 
 ### AdaIN weights (Task 1 cue conflicts)
 
-Pretrained VGG encoder and decoder weights (~110 MB) download automatically on
-first use, or fetch manually — see [docs/adain_weights.md](docs/adain_weights.md).
+Pretrained VGG encoder and decoder weights (~110 MB total) download
+automatically on first use. To fetch them manually:
+
+```bash
+mkdir -p task1/models/weights
+curl -L -o task1/models/weights/vgg_normalised.pth   https://github.com/naoto0804/pytorch-AdaIN/releases/download/v0.0.0/vgg_normalised.pth
+curl -L -o task1/models/weights/decoder.pth   https://github.com/naoto0804/pytorch-AdaIN/releases/download/v0.0.0/decoder.pth
+```
+
+These weights are not authored here — see *Attribution* below. They are
+gitignored and must not be committed.
 
 ---
 
@@ -201,29 +208,12 @@ matplotlib, UMAP.
 
 ---
 
-## Documentation
+## Reproducibility notes
 
-### Conceptual guides — start here
+Configuration files under each `task*/configs/` directory carry the full
+protocol for every run, including the rationale for each experimental choice
+and the pre-registered expectations for the controlled studies. They are the
+authoritative record of how each result was produced.
 
-Concept, experimental design, what each number means, and the traps the
-assignment warns about. Written to be read before the report.
-
-| Document | Contents |
-|---|---|
-| [docs/task1_concepts.md](docs/task1_concepts.md) | Interventions, shape bias and coverage, representation vs prediction |
-| [docs/task2_concepts.md](docs/task2_concepts.md) | UDA methods, domain separability, negative transfer |
-| [docs/task3_concepts.md](docs/task3_concepts.md) | DG, the Sketch information boundary, SAM and sharpness |
-| [docs/task4_concepts.md](docs/task4_concepts.md) | OSR scores, PROSER placeholders, near/far, thresholds |
-| [docs/synthesis_and_report.md](docs/synthesis_and_report.md) | Cross-task threads, 8-page structure, submission checklist |
-
-### Code-level reference
-
-| Document | Contents |
-|---|---|
-| [docs/common.md](docs/common.md) | Shared utilities: seeding, metrics, config, logging |
-| [docs/shared.md](docs/shared.md) | PACS protocol, frozen BatchNorm, MMD |
-| [docs/task2.md](docs/task2.md) | The four UDA methods, implementation detail |
-| [docs/adain_weights.md](docs/adain_weights.md) | AdaIN weights and the cue-conflict rejection rule |
-| [DIRECTORY_STRUCTURE.md](DIRECTORY_STRUCTURE.md) | Layout, and departures from the PDF's suggested trees |
-| [COLAB.md](COLAB.md) | GPU workflow |
-| [progress.md](progress.md) | Living record: state, decisions, bugs, evidence |
+Every run writes a `run.json` alongside its metrics containing the resolved
+config, the git commit, library versions and the device used.

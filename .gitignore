@@ -64,3 +64,13 @@ Thumbs.db
 
 # AdaIN pretrained weights (downloaded, not authored here - see README)
 task1/models/weights/
+
+# --- Documentation and working notes (kept locally, not published) ---
+# README.md is deliberately NOT ignored: the assignment's Deliverables require
+# a top-level README explaining how to reproduce each task, and it carries the
+# external-code attribution.
+*.md
+!README.md
+
+# Agent instruction files and the assignment PDF (private working material)
+ATML-PA1.pdf
