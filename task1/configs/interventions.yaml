@@ -1,0 +1,147 @@
+# Task 1 controlled interventions.
+#
+# All interventions are generated ONCE on the common 224x224 RGB canvas and
+# cached, so ResNet, ViT and CLIP all see byte-identical inputs. Each backbone
+# applies only its own normalization afterwards.
+#
+# Every experimental choice below carries a stated hypothesis and metric, as
+# the assignment requires these be declared BEFORE interpreting results.
+
+defaults: base.yaml
+
+run_name: interventions
+
+interventions:
+
+  # ---------------------------------------------------------------- color --
+  grayscale:
+    # Required common intervention.
+    type: grayscale
+    keep_channels: 3              # replicate luminance to 3 channels
+    luma: itu_r_601_2             # PIL 'L' conversion weights
+    hypothesis: >
+      Removing chroma while preserving geometry and luminance texture should
+      cost little accuracy for all three backbones, because ImageNet and
+      CLIP-scale pretraining both contain substantial grayscale and
+      low-saturation imagery. Any model that loses a lot here is relying on
+      colour as a primary cue.
+    metrics: [accuracy_change, prediction_consistency, representation_stability]
+
+  hue_rotation:
+    # CHOSEN additional colour transformation (one of: fixed hue rotation,
+    # palette transfer, class-swapped colour statistics).
+    #
+    # Rationale for the choice: a fixed hue rotation is the cleanest
+    # counterpart to grayscale. Grayscale REMOVES colour; hue rotation CHANGES
+    # it while provably preserving geometry, edges, luminance and saturation.
+    # Palette transfer and class-swapped statistics also perturb contrast and
+    # inter-object statistics, which would confound "sensitivity to colour"
+    # with "sensitivity to global appearance".
+    type: hue_rotation
+    degrees: 90                   # fixed, not sampled: same shift for every image
+    preserves: [geometry, edges, luminance, saturation, texture_structure]
+    changes: [hue_angle]
+    hypothesis: >
+      If a model encodes object identity largely through shape and texture,
+      a 90-degree hue rotation should leave predictions mostly intact. Larger
+      drops are expected for classes whose typical colour is diagnostic
+      (e.g. deer/horse browns, sky-blue backgrounds for airplane/bird), so a
+      class-conditional drop pattern is more informative than the mean.
+    metrics: [accuracy_change, prediction_consistency, representation_stability]
+
+  # -------------------------------------------------------- shape/texture --
+  cue_conflict:
+    type: style_transfer
+    method: adain                 # Huang & Belongie (2017)
+    # Content supplies SHAPE (class A); style supplies TEXTURE (class B).
+    style_strength: 1.0           # AdaIN alpha; 1.0 = full stylization
+    class_pairs_min: 5            # at least five unordered pairs
+    bidirectional: true           # generate A->B and B->A when feasible
+    target_valid_conflicts: 200   # at least 200 valid conflicts
+    balance: [class_pair, direction]
+    rejection_rule:
+      # Defined BEFORE model evaluation. Model predictions may NOT be used to
+      # decide which images to retain -- doing so would bias shape bias toward
+      # whichever cue the model already prefers.
+      defined_before_evaluation: true
+      uses_model_predictions: false
+      criteria:
+        - content_structure_visible     # object outline still identifiable
+        - style_texture_applied         # stylization visibly took effect
+        - no_saturation_collapse        # output not washed out / degenerate
+      record_counts: [accepted, rejected]
+      manual_review: true               # visual rule, applied by Talha
+    hypothesis: >
+      Following Geirhos et al. (2019), the ImageNet-supervised ResNet-50 is
+      expected to show the lowest shape bias. ViT-B/16 and CLIP are NOT assumed
+      to be shape-biased in advance: architecture, pretraining data, supervision
+      and augmentation are confounded, so any ordering must be argued from the
+      measured counts. Coverage is reported alongside shape bias because a high
+      shape-bias value resting on few shape-or-texture decisions is weak.
+    metrics: [shape_bias, coverage, decision_counts, representation_stability]
+
+  # ------------------------------------------------------------ spatial ----
+  translation:
+    type: translation
+    displacements: [0, 8, 16, 32]         # pixels
+    directions: [up, down, left, right]   # averaged across the four
+    padding: reflect                      # reflection pad, then shifted crop
+    hypothesis: >
+      Convolution encourages translation equivariance, but stride, pooling,
+      padding and the global-average-pool readout make the final ResNet
+      classifier only approximately shift-invariant. ViT's learned absolute
+      positional encoding gives no built-in equivariance, so a steeper decline
+      with displacement is plausible. Degradation should be monotone in
+      displacement for all models; the interesting quantity is the relative
+      slope, not the intercept.
+    metrics: [accuracy_vs_displacement, consistency_vs_displacement,
+              representation_stability]
+
+  patch_shuffle:
+    type: patch_permutation
+    grid: [4, 4]                  # 4x4 PIXEL-space grid (56x56 px patches)
+    non_identity: true            # permutation must move at least one patch
+    seed: 6304
+    shared_across_models: true    # exactly the same shuffled images reused
+    note: >
+      The 4x4 pixel grid deliberately does not match ViT's 16x16 token size.
+      The experiment concerns reliance on coherent global spatial arrangement,
+      not the mechanics of a particular tokenization.
+    hypothesis: >
+      Patch shuffling destroys global object structure while preserving all
+      pixels and most local texture. Models relying on local texture statistics
+      should degrade least. A confident prediction after shuffling is not
+      necessarily a sensible one, so mean max confidence is reported alongside
+      accuracy to expose confidently-wrong behaviour.
+    metrics: [accuracy_change, prediction_consistency, mean_max_confidence,
+              representation_stability]
+
+# ------------------------------------------------------ representation ----
+representation_analysis:
+  # Cosine stability between paired clean and transformed features:
+  #   I_T = (1/N) * sum_i  <f(x_i), f(T(x_i))> / (||f(x_i)|| ||f(T(x_i))||)
+  required_for: [grayscale, cue_conflict, translation, patch_shuffle]
+  cosine_stability: true
+
+  visualization:
+    method: tsne                  # CHOSEN: t-SNE (UMAP also permitted)
+    # Rationale: t-SNE emphasises whether examples remain local neighbours,
+    # which is precisely the question here -- does a transformed image stay
+    # beside its clean counterpart? UMAP's broader structure preservation is
+    # less directly tied to that. Settings are reported because t-SNE output
+    # depends strongly on perplexity and initialization.
+    perplexity: 30
+    n_iter: 1000
+    init: pca
+    learning_rate: auto
+    metric: cosine
+    seed: 6304
+    # ONE projection is fit per backbone to the COMBINED clean + transformed
+    # features, so both conditions share a space.
+    fit_on: combined_clean_and_transformed
+    color_by: ground_truth_class
+    marker_by: condition          # clean vs transformed
+    # Projections fitted separately per backbone are NOT coordinate-comparable;
+    # only within-plot structure may be discussed.
+    cross_backbone_coordinates_comparable: false
+    fixed_image_subset: true

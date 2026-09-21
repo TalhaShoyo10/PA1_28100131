@@ -1,0 +1,79 @@
+# Task 1 (Inductive Biases and Representations) shared setup.
+#
+# Dataset choice: STL-10 (the assignment's recommended option) -- ten distinct
+# object classes at lower computational cost than Oxford-IIIT Pets, which also
+# makes the >=200 cue-conflict images across >=5 class pairs tractable.
+#
+# CRITICAL PROTOCOL POINT: every model must receive the SAME clean and
+# transformed images. Interventions are therefore constructed once on a common
+# 224x224 RGB image and cached to disk; each backbone then applies only its own
+# required normalization at load time. This is why transform generation is kept
+# separate from evaluation.
+
+task: task1
+seed: 6304
+
+data:
+  name: stl10
+  root: data/stl10
+  num_classes: 10
+  classes: [airplane, bird, car, cat, deer, dog, horse, monkey, ship, truck]
+  # Stratified 80/20 split of the OFFICIAL TRAIN partition, for the heads.
+  split_seed: 6304
+  val_fraction: 0.2
+  # Class-balanced subset of the OFFICIAL TEST partition for all evaluation.
+  eval_subset:
+    size: 500
+    balanced: true
+    seed: 6304
+    manifest: task1/data/eval_subset_seed6304.json   # saved image identifiers
+    # If a class has too few examples, use all available and document the
+    # imbalance rather than silently resampling.
+  image_size: 224                # common canvas for every intervention
+  interventions_dir: task1/data/generated
+
+backbones:
+  resnet50:
+    source: torchvision
+    weights: ResNet50_Weights.IMAGENET1K_V2
+    feature: global_average_pool
+    feature_dim: 2048
+  vit_b16:
+    source: torchvision
+    weights: ViT_B_16_Weights.IMAGENET1K_V1
+    feature: class_token          # final ViT class token
+    feature_dim: 768
+  clip_vitb32:
+    source: open_clip
+    model_name: ViT-B-32
+    pretrained: openai
+    feature: image_embedding
+    normalize_embedding: true     # normalized CLIP image embedding
+    feature_dim: 512
+
+# Linear probe: one head per frozen backbone. Backbones are never updated.
+head:
+  epochs: 50                      # maximum
+  optimizer: adamw
+  lr: 1.0e-3
+  weight_decay: 1.0e-4
+  early_stopping_patience: 5      # epochs without improved val accuracy
+  batch_size: 128
+  seed: 6304
+
+zero_shot:
+  # Fixed prompt; prompt search is explicitly outside the required comparison.
+  prompt_template: "a photo of a {class}."
+  # Confidence = softmax over CLIP's scaled class similarities (logit_scale
+  # applied), so it is comparable to the heads' softmax confidence.
+  use_logit_scale: true
+
+output:
+  results_dir: task1/results
+  figures_dir: figures/task1
+  cache_dir: task1/results/cache
+
+smoke:
+  eval_subset_size: 20
+  head_epochs: 1
+  cue_conflict_pairs: 1
