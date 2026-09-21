@@ -1,0 +1,35 @@
+# ATML PA1 - Beyond IID
+#
+# Local (CPU) use: install as-is; torch/torchvision resolve to CPU wheels and
+# are sufficient for smoke tests, unit tests and figure generation.
+#
+# Colab (GPU) use: torch/torchvision are preinstalled with a matching CUDA
+# build. Do NOT let pip replace them -- see COLAB.md, which installs this file
+# with the torch lines already satisfied.
+
+# --- Core deep learning ---
+torch>=2.2
+torchvision>=0.17
+
+# --- Task 1: CLIP backbone ---
+open_clip_torch>=2.24.0
+
+# --- Numerics, metrics, classical models ---
+numpy>=1.26
+scikit-learn>=1.4
+scipy>=1.11
+
+# --- Data handling and config ---
+pyyaml>=6.0
+pandas>=2.1
+Pillow>=10.0
+
+# --- Visualisation ---
+matplotlib>=3.8
+umap-learn>=0.5.5        # Task 1 representation analysis (t-SNE alternative)
+
+# --- Progress reporting ---
+tqdm>=4.66
+
+# --- Testing ---
+pytest>=8.0

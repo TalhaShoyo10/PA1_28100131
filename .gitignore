@@ -1,0 +1,66 @@
+# --- Datasets (never commit raw data; see README for download instructions) ---
+data/
+!*/data/
+!*/data/*.py
+!shared/splits/
+datasets/
+*.tar
+*.tar.gz
+*.zip
+stl10_binary/
+cifar-10-batches-py/
+cifar-100-python/
+PACS/
+pacs/
+
+# --- Environments ---
+.venv/
+venv/
+env/
+.conda/
+
+# --- Python ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+*.egg-info/
+
+# --- Checkpoints and large artifacts ---
+checkpoints/
+*.pth
+*.pt
+*.ckpt
+*.npy
+*.npz
+*.pkl
+
+# --- Generated intervention images / feature caches ---
+task1/data/generated/
+task4/cache/
+**/cache/
+
+# --- Logs and tracking ---
+wandb/
+runs/
+*.log
+logs/
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# --- Keep: small machine-readable results that support the report ---
+!**/results/**/*.csv
+!**/results/**/*.json
+!**/results/**/*.md
+!figures/**/*.png
+!figures/**/*.pdf
+
+# AdaIN pretrained weights (downloaded, not authored here - see README)
+task1/models/weights/
