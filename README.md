@@ -203,11 +203,27 @@ matplotlib, UMAP.
 
 ## Documentation
 
+### Conceptual guides — start here
+
+Concept, experimental design, what each number means, and the traps the
+assignment warns about. Written to be read before the report.
+
+| Document | Contents |
+|---|---|
+| [docs/task1_concepts.md](docs/task1_concepts.md) | Interventions, shape bias and coverage, representation vs prediction |
+| [docs/task2_concepts.md](docs/task2_concepts.md) | UDA methods, domain separability, negative transfer |
+| [docs/task3_concepts.md](docs/task3_concepts.md) | DG, the Sketch information boundary, SAM and sharpness |
+| [docs/task4_concepts.md](docs/task4_concepts.md) | OSR scores, PROSER placeholders, near/far, thresholds |
+| [docs/synthesis_and_report.md](docs/synthesis_and_report.md) | Cross-task threads, 8-page structure, submission checklist |
+
+### Code-level reference
+
 | Document | Contents |
 |---|---|
 | [docs/common.md](docs/common.md) | Shared utilities: seeding, metrics, config, logging |
 | [docs/shared.md](docs/shared.md) | PACS protocol, frozen BatchNorm, MMD |
-| [docs/task2.md](docs/task2.md) | The four UDA methods and what each tests |
+| [docs/task2.md](docs/task2.md) | The four UDA methods, implementation detail |
 | [docs/adain_weights.md](docs/adain_weights.md) | AdaIN weights and the cue-conflict rejection rule |
+| [DIRECTORY_STRUCTURE.md](DIRECTORY_STRUCTURE.md) | Layout, and departures from the PDF's suggested trees |
 | [COLAB.md](COLAB.md) | GPU workflow |
 | [progress.md](progress.md) | Living record: state, decisions, bugs, evidence |
