@@ -1,0 +1,34 @@
+# GCSC - "a Good Closed-Set Classifier" + MLS (Task 4 step 3).
+#
+# A second ten-class ResNet-18 trained with EXACTLY the vanilla recipe and ONE
+# change: RandAugment(num_ops=2, magnitude=9) inserted after the crop and flip
+# and before tensor conversion and normalization.
+#
+# Initialization procedure, optimizer, schedule, batch size, epochs, seed and
+# checkpoint rule are all unchanged -- this is a controlled comparison, so any
+# other difference would confound the augmentation effect.
+#
+# Tests whether an augmentation-induced change in CLOSED-SET accuracy is
+# accompanied by better REJECTION, particularly for near unknowns. Following
+# Vaze et al. (2022) the two are often correlated, but the assignment warns
+# that better closed-set accuracy need not improve rejection.
+
+defaults: base.yaml
+
+run_name: gcsc
+
+method:
+  name: gcsc
+  init: random
+  loss: cross_entropy
+
+train:
+  augmentation:
+    # Order matters: crop -> flip -> RandAugment -> ToTensor -> Normalize.
+    random_crop: {size: 32, padding: 4}
+    random_horizontal_flip: true
+    rand_augment: {num_ops: 2, magnitude: 9}
+
+scores:
+  # Evaluated with MLS, the common score for the trained-model comparison.
+  primary: mls

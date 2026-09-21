@@ -1,0 +1,85 @@
+# PROSER - classifier and data placeholders (Task 4 step 4).
+# Zhou et al. (2021), "Learning Placeholders for Open-Set Recognition".
+#
+# Initialized from the SELECTED VANILLA CHECKPOINT (not from scratch) and
+# fine-tuned with five appended dummy classifiers.
+#
+# Two complementary objectives:
+#
+#  1. Classifier placeholders (beta = 1). For an ordinary CIFAR-10 example the
+#     correct known class should remain the largest response; but once that
+#     correct class is EXCLUDED, a dummy classifier should become the strongest
+#     remaining response. The dummies thereby learn regions adjacent to the
+#     known classes that can later supply evidence for rejection.
+#
+#  2. Data placeholders (gamma = 0.1). With no real unknowns available,
+#     manifold mixup synthesises "unknown-like" representations BETWEEN two
+#     different known classes, and trains them toward the dummy classifiers
+#     rather than toward either original class.
+#
+# Each mini-batch is split into two equal halves: the first half trains the
+# classifier placeholders, the second half the data placeholders.
+#
+# CONSTRAINT: no CIFAR-100 image may participate in either placeholder
+# construction. Checkpoint selection uses CIFAR-10 validation accuracy only.
+
+defaults: base.yaml
+
+run_name: proser
+
+method:
+  name: proser
+  init_from: checkpoints/task4/vanilla/best.pt   # selected vanilla checkpoint
+  dummy_classifiers: 5
+
+  classifier_placeholder:
+    beta: 1.0
+    # After masking out the ground-truth class, the strongest remaining
+    # response should be a dummy.
+    objective: dummy_is_runner_up_after_masking_target
+
+  data_placeholder:
+    gamma: 0.1
+    method: manifold_mixup
+    # For the required CIFAR ResNet-18: mix AFTER layer2, BEFORE layer3.
+    mix_location: after_layer2
+    lam_distribution: {name: beta, alpha: 2.0, beta: 2.0}   # lambda ~ Beta(2,2)
+    require_different_classes: true    # y_i != y_j
+    # h_tilde = lam * h_i + (1 - lam) * h_j, then passed through the remainder
+    # of the network and trained toward the dummy classifiers.
+    train_mixed_toward: dummy_classifiers
+
+  batch_split:
+    classifier_placeholder_fraction: 0.5
+    data_placeholder_fraction: 0.5
+
+# Fine-tuning recipe (overrides the base training recipe as specified).
+train:
+  epochs: 50
+  optimizer: sgd
+  lr: 1.0e-3
+  momentum: 0.9
+  weight_decay: 5.0e-4
+  scheduler: cosine
+  batch_size: 128
+
+scores:
+  # Two rows in the comparison table:
+  #  1. MLS over the TEN KNOWN-CLASS logits only, so PROSER is directly
+  #     comparable with Vanilla and GCSC.
+  #  2. The placeholder-based detection score from the reference
+  #     implementation, combining the strongest dummy response with the
+  #     known-class responses.
+  primary: mls
+  mls_uses_known_logits_only: true
+  placeholder_detection:
+    enabled: true
+    source: reference_implementation
+    combines: [max_dummy_response, known_class_responses]
+    # Calibrated on CIFAR-10 validation data ONLY.
+    calibration_set: cifar10_val
+
+evaluation:
+  # CSA is computed from the ten known-class logits alone, keeping known-class
+  # classification and unknown rejection distinct.
+  csa_uses_known_logits_only: true

@@ -1,0 +1,42 @@
+# Vanilla closed-set baseline (Task 4 step 1).
+#
+# Ten-class CIFAR ResNet-18 trained from random initialization with plain
+# cross-entropy. The selected checkpoint is then FROZEN and its penultimate
+# features f(x) and logits z(x) are extracted once for:
+#   CIFAR-10 train / val / test  and  the fixed CIFAR-100 near+far sets.
+#
+# All four post-hoc scores (MSP, MLS, Energy, Mahalanobis) must read from
+# exactly these same saved logits and features, so that score differences
+# cannot come from evaluation-time variation.
+#
+# PROSER is later initialized from this checkpoint.
+
+defaults: base.yaml
+
+run_name: vanilla
+
+method:
+  name: vanilla
+  init: random
+  loss: cross_entropy
+
+extraction:
+  # Cached once, reused by every score.
+  save: [features, logits]
+  splits: [cifar10_train, cifar10_val, cifar10_test, cifar100_near, cifar100_far]
+  # Mahalanobis statistics are estimated from UNAUGMENTED training features.
+  unaugmented_train_features: true
+
+scores:
+  # All four are post-hoc on this frozen model. Larger u(x) = more novel.
+  msp:
+    formula: "1 - max_k p_k(x)"
+  mls:
+    formula: "-max_k z_k(x)"
+  energy:
+    formula: "-log sum_k exp(z_k(x))"
+  mahalanobis:
+    formula: "min_c (f(x)-mu_c)^T Sigma^-1 (f(x)-mu_c)"
+    covariance: shared_diagonal        # one shared diagonal Sigma
+    estimated_from: cifar10_train_unaugmented
+    diagonal_epsilon: 1.0e-6           # added to every diagonal entry

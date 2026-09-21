@@ -1,0 +1,54 @@
+# RPL - Reciprocal Point Learning (Task 4 step 5). OPTIONAL EXTENSION.
+# Chen et al. (2020), "Learning Open Set Network with Discriminative
+# Reciprocal Points".
+#
+# STATUS: SCAFFOLD ONLY -- not implemented, not run.
+# task4/methods/rpl.py is a documented stub that raises NotImplementedError.
+# This config records the intended settings so the extension can be completed
+# without re-deriving them, and so the evaluation table can accept an optional
+# extra row. Nothing in the required comparison depends on it.
+#
+# Idea: most classifiers learn what each class IS. RPL learns a reciprocal
+# point per class representing what the class IS NOT. Features of class k are
+# pushed AWAY from class k's reciprocal point, so greater distance is stronger
+# evidence for k. At test time an input not sufficiently far from ANY
+# reciprocal point is rejected as unknown. An open-space regularization term
+# keeps the learned feature space bounded.
+#
+# If completed, the report must clearly identify:
+#   - how the reciprocal points are represented and learned;
+#   - how distance to a reciprocal point determines the known-class score;
+#   - how the open-space regularization term constrains the feature space;
+#   - which RPL score rejects unknown examples at test time.
+#
+# CONSTRAINT (same as every other Task 4 method): trained on CIFAR-10 only.
+# No CIFAR-100 image may influence training, checkpoint selection, or
+# hyperparameter selection. Evaluation uses the identical near/far split,
+# AUROC, and validation-calibrated rejection protocol as the required methods.
+
+defaults: base.yaml
+
+run_name: rpl
+
+method:
+  name: rpl
+  implemented: false             # flips to true only when rpl.py is real
+  init: random
+  reciprocal_points:
+    per_class: 1                 # one learned reciprocal point per known class
+    dim: 512                     # matches the penultimate feature dimension
+    learnable: true
+  open_space_regularization:
+    enabled: true
+    # Learnable per-class margin R bounding the open space; weight on the
+    # regularizer relative to the classification term.
+    lambda_open: 0.1
+  distance: euclidean
+  score:
+    # Unknownness convention must match common/metrics.py: LARGER = more novel.
+    convention: larger_is_more_novel
+
+attribution:
+  # Any materially reused external code must be attributed in the README.
+  reference: "Chen et al. (2020), official/public RPL implementation"
+  adapted: false                 # set true and name the source if adapted

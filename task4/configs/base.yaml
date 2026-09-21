@@ -1,0 +1,98 @@
+# Task 4 (Open-Set Recognition) shared setup.
+#
+# INFORMATION BOUNDARY: CIFAR-100 is EVALUATION-ONLY. No CIFAR-100 image may
+# influence training, checkpoint selection, score definition, or threshold
+# selection. CIFAR-100 *training* images are not used at all. Thresholds are
+# calibrated on CIFAR-10 validation data only.
+
+task: task4
+seed: 6304
+
+data:
+  known:
+    name: cifar10
+    root: data/cifar10
+    num_classes: 10              # all ten CIFAR-10 classes are known
+    # Stratified 90/10 split of the official TRAIN partition.
+    split_seed: 6304
+    val_fraction: 0.1
+    manifest: task4/data/cifar10_split_seed6304.json
+    # The complete official test set is used for final known-class evaluation.
+    test_split: test
+  unknown:
+    name: cifar100
+    root: data/cifar100
+    split: test                  # test partition only
+    # FIXED grouping -- may not be revised after seeing results.
+    near: [bus, pickup_truck, motorcycle, tractor, wolf, fox, leopard, camel]
+    far: [bottle, bowl, chair, clock, keyboard, mushroom, sunflower, wardrobe]
+    expected_per_group: 800      # 8 classes x 100 test images
+    evaluation_only: true
+
+model:
+  # CIFAR-appropriate ResNet-18: the ImageNet 7x7 stride-2 stem is replaced by
+  # a 3x3 stride-1 convolution and the initial max-pool is removed, so 32x32
+  # inputs are not downsampled away before any features are learned.
+  arch: resnet18_cifar
+  stem_conv: {kernel: 3, stride: 1, padding: 1}
+  remove_maxpool: true
+  input_size: 32
+  feature_dim: 512
+  num_classes: 10
+
+train:
+  # Default recipe; a step overrides it only where explicitly permitted.
+  augmentation:
+    random_crop: {size: 32, padding: 4}
+    random_horizontal_flip: true
+  optimizer: sgd
+  lr: 0.1
+  momentum: 0.9
+  weight_decay: 5.0e-4
+  scheduler: cosine
+  batch_size: 128
+  epochs: 100
+  num_workers: 2
+
+selection:
+  # Checkpoint with the highest CIFAR-10 validation accuracy. Unknown examples
+  # play no part in selection.
+  metric: cifar10_val_accuracy
+  mode: max
+
+evaluation:
+  # AUROC on three comparisons, plus a validation-calibrated operating point.
+  comparisons: [known_vs_near, known_vs_far, known_vs_all]
+  threshold:
+    # tau = 95th percentile of unknownness on the CIFAR-10 VALIDATION set;
+    # accept x when u(x) <= tau. Aims to accept 95% of known examples.
+    calibration_set: cifar10_val
+    percentile: 95
+    accept_rule: "u(x) <= tau"
+  report:
+    - auroc_near
+    - auroc_far
+    - auroc_all
+    - cifar10_test_acceptance_rate
+    - near_unknown_rejection_rate
+    - far_unknown_rejection_rate
+    - fpr_at_95_tpr           # = fraction of unknowns incorrectly accepted
+  failure_analysis:
+    # Using the vanilla MLS threshold, inspect incorrectly accepted unknowns.
+    score: mls
+    model: vanilla
+    min_near_cases: 3
+    min_far_cases: 3
+    record: [unknown_class, predicted_known_class, score, threshold]
+
+output:
+  results_dir: task4/results
+  checkpoint_dir: checkpoints/task4
+  figures_dir: figures/task4
+  cache_dir: task4/cache        # saved logits/features only, not committed
+
+smoke:
+  epochs: 1
+  max_batches_per_epoch: 5
+  limit_train_images: 512
+  limit_eval_images: 256
