@@ -30,7 +30,11 @@ downloaded. No result, table, or figure exists.
 | Task 2 `train.py` + evaluation | `ACTUAL` — all 4 methods smoke-tested end-to-end |
 | Task 3 DAN-DG + SAM + `train.py` | `ACTUAL` — both smoke-tested end-to-end |
 | Task 4 CIFAR ResNet + 4 scores + PROSER | `ACTUAL` — unit-tested |
-| Task 1 eval/representation, T2/T3 final eval, T4 train/eval | **NOT STARTED** |
+| Task 1 eval + representation + orchestrator | `ACTUAL` |
+| Task 2 `evaluate_final.py`, Task 3 `evaluate_sketch.py` | `ACTUAL` |
+| Task 4 data, `train.py`, `extract_outputs.py`, `evaluate_osr.py` | `ACTUAL` — OSR pipeline verified on synthetic cache |
+| README, COLAB.md, git init + 8 commits | `ACTUAL` |
+| **ALL CODE COMPLETE** | `ACTUAL` — 38 modules, 322 tests |
 | Data download / splits | **NOT STARTED** |
 | Any experiment | **NOT STARTED** |
 | Report artifacts | **NOT STARTED** |
@@ -169,9 +173,15 @@ invalid result:
 
 ## Not yet done
 
-- **Task 2**: `train.py`, `evaluate_final.py`, `evaluation/` (metrics,
-  domain separability, class analysis).
-- **Tasks 1, 3, 4**: all implementation code (only configs exist).
+**The code is complete.** What remains needs data or GPU:
+
+- **Datasets**: PACS must be downloaded manually (no torchvision loader) and
+  placed at `data/PACS/<domain>/<class>/`. STL-10 and CIFAR auto-download but
+  are slow on this connection (~40 kB/s measured); they download fast on Colab.
+- **AdaIN weights**: blocked by the sandbox here, download normally on Colab.
+- **All real experiments** — see COLAB.md for the run order.
+- Talha to create the public GitHub repo and push.
+- Report-support artifacts once real results exist.
 - **All data handling**: STL-10, PACS, CIFAR-10/100 downloads; split manifests
   (`shared/splits/pacs_sketch_seed6304.json`, Task 1 eval subset, Task 4 split).
 - **All experiments.**
@@ -218,19 +228,37 @@ No evidence exists yet. Every cell is pending by construction.
 
 ---
 
+## Repository state
+
+38 source modules, 322 tests passing (1 skipped: needs AdaIN weights), 8
+structured git commits, clean working tree. No datasets, checkpoints or
+downloaded weights are tracked.
+
 ## Next action
 
 **Talha's directive (2026-09-22): build the ENTIRE repository's code first,
-then run all training at once.** Sequencing below reflects that.
+then run all training at once.** That is now DONE.
 
-1. `shared/make_splits.py` — generate and commit
-   `shared/splits/pacs_sketch_seed6304.json` (needs the PACS download first).
-2. `task2/train.py` — the shared training loop driving all four methods,
-   with early stopping on mean source-val macro-F1.
-3. Smoke-test Source-only on CPU with `--smoke` (1 epoch, 3 batches).
-4. README / COLAB.md / git init, then push so Colab can clone.
-5. Task 4 `resnet_cifar.py` + `train.py` (second-longest dependency chain:
-   Vanilla → PROSER).
+1. **Talha**: create the public GitHub repo, then `git remote add origin <url>`
+   and `git push -u origin main`.
+2. **Talha**: obtain PACS and place it at `data/PACS/` (or on Drive for Colab).
+3. Open Colab, follow COLAB.md: verify GPU, run the test suite, smoke-test,
+   then run the two dependency chains first
+   (Task2 source_only → Task3 ERM; Task4 vanilla → PROSER).
+4. Sync results back, then build report-support artifacts from REAL numbers.
+
+### Task 4 OSR pipeline verified on a synthetic cache `PRELIMINARY`
+
+CIFAR downloads at only ~40 kB/s on this connection (170 MB would take over an
+hour), so the OSR evaluation was exercised with synthetic cached outputs
+instead. Every metric behaved as designed: known acceptance landed at ~95% for
+all four scores (threshold calibration works by construction), rejection +
+FPR@95TPR summed to 100 in every row, near unknowns scored consistently harder
+than far (MLS 98.42 vs 99.99 AUROC), and Mahalanobis reached 100 on
+feature-shifted unknowns, which is exactly the signal it measures. Failure-case
+extraction, the 3-panel score-distribution figure and all CSV outputs were
+produced. **These numbers come from synthetic data and mean nothing about real
+models** — the test was of the pipeline.
 
 ### Smoke tests on synthetic PACS `PRELIMINARY`
 
