@@ -1,0 +1,88 @@
+# Task 3 (Domain Generalization) shared protocol.
+#
+# INFORMATION BOUNDARY -- the defining constraint of this task:
+#   No Sketch image may be loaded by Task 3 training, source-side diagnostics,
+#   checkpoint selection, or hyperparameter selection. Sketch is loaded ONLY by
+#   task3/evaluate_sketch.py, after every Task 3 decision is frozen.
+#
+#   Additionally: Task 2 results on Sketch must NOT be used to revise any Task 3
+#   architecture, augmentation, loss, or controlled-study setting. "Unseen
+#   target" here refers to information available to the Task 3 learning
+#   procedure.
+#
+# The protocol below deliberately mirrors task2/configs/base.yaml exactly
+# (splits, backbone, head, preprocessing, augmentation, sampling, optimizer,
+# budget, early stopping, seed), because the assignment requires the ERM
+# baseline to be the SAME model as Task 2's Source-only checkpoint.
+# tests/test_config.py enforces this equality mechanically.
+
+task: task3
+seed: 6304
+
+data:
+  name: pacs
+  root: data/PACS
+  sources: [photo, art_painting, cartoon]
+  target: sketch                 # evaluation-only in this task
+  num_classes: 7
+  split_seed: 6304
+  val_fraction: 0.2
+  split_manifest: shared/splits/pacs_sketch_seed6304.json   # reused from Task 2
+  resize: 256
+  crop: 224
+  hflip: true
+  # Hard guard: training/diagnostic/selection loaders must refuse to build a
+  # Sketch loader while this is true. Only evaluate_sketch.py may flip it.
+  target_access_forbidden: true
+
+model:
+  backbone: resnet18
+  weights: ResNet18_Weights.IMAGENET1K_V1
+  feature_dim: 512
+  freeze_bn_stats: true          # same frozen-BN policy as Task 2
+
+train:
+  epochs: 30
+  optimizer: adamw
+  lr: 1.0e-4
+  weight_decay: 1.0e-4
+  source_batch_per_domain: 8     # 8 x 3 = 24 per batch; no target stream
+  target_batch: 0                # no target data enters training
+  early_stopping_patience: 5
+  num_workers: 2
+
+selection:
+  metric: mean_source_val_macro_f1
+  mode: max
+
+evaluation:
+  # Source-domain separability: 3-way (Photo / Art / Cartoon), chance = 33.3%.
+  # Note this differs from Task 2's binary source-vs-target separability.
+  source_domain_separability:
+    split_seed: 6304
+    test_fraction: 0.3
+    classifier: logistic_regression
+    multi_class: multinomial
+    C: 1.0
+    chance: 33.33
+  # Common local sharpness proxy, identical for ERM, DAN-DG and SAM:
+  #   delta_sharp = L_val(theta + eps) - L_val(theta),
+  #   eps = 0.05 * grad / ||grad||_2
+  # on a FIXED validation batch of 32 examples per source, seed 6304, model in
+  # eval mode. This is a standardized local diagnostic, not proof of global
+  # flatness.
+  sharpness_proxy:
+    batch_per_domain: 32
+    batch_seed: 6304
+    rho: 0.05
+    eval_mode: true
+
+output:
+  results_dir: task3/results
+  checkpoint_dir: checkpoints/task3
+  figures_dir: figures/task3
+
+smoke:
+  epochs: 1
+  max_batches_per_epoch: 3
+  limit_images_per_domain: 64

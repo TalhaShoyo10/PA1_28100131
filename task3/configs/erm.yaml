@@ -1,0 +1,26 @@
+# ERM baseline (Task 3 step 1).
+#
+# This is NOT a new training run. The assignment requires reusing the
+# Source-only checkpoint trained in Task 2:
+#
+#   "The Source-only model from Task 2 is the ERM baseline here; load its
+#    saved checkpoint rather than retraining it under a different
+#    configuration."
+#
+# task3/train.py must therefore refuse to train this config and instead
+# verify that the Task 2 checkpoint exists and load it. Retraining would risk
+# a silently different baseline and break the shared-baseline comparisons that
+# Task 3 RQ4 and the cross-task synthesis depend on.
+#
+#   L_ERM = (1/3) * sum_{e in {P,A,C}} R_e(theta)
+#
+# with equal influence per domain via domain-balanced batches.
+
+defaults: base.yaml
+
+run_name: erm
+
+method:
+  name: erm
+  reuse_checkpoint_from: checkpoints/task2/source_only/best.pt
+  retrain_forbidden: true

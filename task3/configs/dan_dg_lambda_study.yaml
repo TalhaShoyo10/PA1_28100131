@@ -1,0 +1,41 @@
+# Controlled design study (Task 3 step 5): vary lambda_DG for DAN-DG.
+#
+# Selected study: lambda_DG in {0.1, 1, 10}, every other setting fixed.
+# This is the MATCHED counterpart of task2/configs/dan_lambda_study.yaml:
+# the same MMD mechanism and the same three values, but aligning observed
+# sources to each other instead of sources to an unlabeled target. Holding the
+# discrepancy measure and the sweep grid fixed is what lets Task 3 RQ4 compare
+# target-aware and target-free alignment at matched alignment pressure.
+#
+# Pre-registered expectations (stated BEFORE any Sketch result is seen):
+#   - Source validation performance: expected to DEGRADE as lambda_DG grows;
+#     at lambda=10 the pairwise MMD penalty should dominate cross-entropy.
+#   - Source-domain separability (3-way, chance 33.3%): expected to FALL
+#     monotonically toward chance, since that is the quantity being optimised.
+#   - Sketch performance: expected to be NON-MONOTONE and, on balance, to gain
+#     LESS than Task 2's DAN did at matched lambda. Aligning Photo/Art/Cartoon
+#     to each other does not constrain the direction in which Sketch differs,
+#     so invariance learned across observed sources need not transfer.
+#     A plausible alternative outcome is that strong marginal alignment removes
+#     class-discriminative information and Sketch accuracy falls at lambda=10.
+#
+# HARD CONSTRAINTS:
+#   - The main comparison stays at lambda_DG = 1. Sketch results may NOT be
+#     used to replace it with a post-hoc winner.
+#   - Task 2 Sketch results may NOT inform these settings; the grid is fixed
+#     by the assignment, not chosen from Task 2 outcomes.
+#
+# Run one value per invocation, e.g.:
+#   python task3/train.py --config task3/configs/dan_dg_lambda_study.yaml \
+#       --set method.lambda_dg=0.1 run_name=dan_dg_lambda0.1
+
+defaults: dan_dg.yaml
+
+run_name: dan_dg_lambda_study
+
+study:
+  name: lambda_dg_sweep
+  parameter: method.lambda_dg
+  values: [0.1, 1.0, 10.0]
+  matched_with: task2/configs/dan_lambda_study.yaml
+  analysis_only: true

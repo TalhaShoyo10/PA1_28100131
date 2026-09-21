@@ -1,0 +1,30 @@
+# SAM - parameter-space stability (Task 3 step 3).
+#
+#   min_theta  max_{||eps||_2 <= rho}  L_ERM(theta + eps)
+#
+# Standard, NON-ADAPTIVE Sharpness-Aware Minimization. For each source batch:
+#   1. forward/backward at theta -> gradient g
+#   2. ascent step  eps = rho * g / ||g||_2  (normalized)
+#   3. forward/backward at theta + eps
+#   4. restore theta, then apply the AdamW update using the perturbed-point
+#      gradient
+# Two forward/backward passes per step, so wall-clock is roughly 2x ERM.
+#
+# The shared frozen-BatchNorm policy applies during BOTH passes. If BN
+# statistics were updated on the first pass they would shift before the second,
+# making the perturbed loss incomparable to the clean one.
+#
+# SAM does not remove domain information explicitly; it tests whether a locally
+# stable source solution transfers better to an unseen visual domain.
+
+defaults: base.yaml
+
+run_name: sam
+
+method:
+  name: sam
+  rho: 0.05                      # main comparison value
+  adaptive: false                # standard (non-adaptive) SAM
+  base_optimizer: adamw          # same lr and weight decay as ERM
+  perturb_norm: l2
+  freeze_bn_stats_both_passes: true

@@ -1,0 +1,31 @@
+# DAN-DG - pairwise source-domain alignment (Task 3 step 2).
+#
+#   L_DAN-DG = L_ERM + (lambda_dg / 3) * sum_{e < e'} MMD^2(F(X_e), F(X_e'))
+#
+# over the three unordered source pairs: (P,A), (P,C), (A,C).
+#
+# This is an ADAPTATION of DAN, not the standard UDA algorithm. Standard DAN
+# aligns labeled source features with an unlabeled TARGET. DAN-DG never
+# accesses Sketch; it applies the same MMD mechanism to observed source pairs
+# only. Using the identical MMD implementation and kernel construction as
+# Task 2 is deliberate: it lets the role of target access be examined later
+# without the discrepancy measure itself changing.
+#
+# Bandwidths are 0.5x, 1x, 2x the median pairwise squared distance computed
+# PER DOMAIN PAIR in the current batch.
+
+defaults: base.yaml
+
+run_name: dan_dg
+
+method:
+  name: dan_dg
+  lambda_dg: 1.0                 # main comparison value
+  mmd:
+    kernel: rbf
+    bandwidth_multipliers: [0.5, 1.0, 2.0]
+    bandwidth_estimator: median_pairwise_sq_distance
+    per_pair_bandwidth: true     # recomputed for each domain pair
+    feature: pre_classifier      # 512-d
+  pairs: [[photo, art_painting], [photo, cartoon], [art_painting, cartoon]]
+  shares_mmd_implementation_with: task2/methods/dan.py
