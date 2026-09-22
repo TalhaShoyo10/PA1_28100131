@@ -144,6 +144,36 @@ def test_architecture_matches_reference_checkpoint_shapes() -> None:
     assert dec[-2] == (3, 64, 3, 3)        # output conv back to RGB
 
 
+def test_full_vgg_covers_every_checkpoint_index() -> None:
+    """Regression guard (2026-09-22).
+
+    vgg_normalised.pth stores the COMPLETE VGG-19, not a truncation. Loading
+    it into the relu4_1 encoder failed with unexpected keys 32, 35, 38, 42,
+    45, 48 and 51. These indices are fixed by the published file.
+    """
+    from task1.models.adain import RELU4_1_CUTOFF, build_full_vgg
+
+    indices = sorted({int(k.split(".")[0]) for k in build_full_vgg().state_dict()})
+    assert indices == [0, 2, 5, 9, 12, 16, 19, 22, 25, 29, 32, 35, 38, 42, 45, 48, 51]
+
+    encoder_indices = sorted(
+        {int(k.split(".")[0]) for k in build_vgg_encoder().state_dict()}
+    )
+    assert max(encoder_indices) < RELU4_1_CUTOFF
+    assert encoder_indices == [0, 2, 5, 9, 12, 16, 19, 22, 25, 29]
+
+
+def test_encoder_is_a_prefix_of_the_full_vgg() -> None:
+    """Slicing must preserve the module order the state_dict keys assume."""
+    from task1.models.adain import RELU4_1_CUTOFF, build_full_vgg
+
+    full = list(build_full_vgg())
+    encoder = list(build_vgg_encoder())
+    assert len(encoder) == RELU4_1_CUTOFF
+    for a, b in zip(encoder, full[:RELU4_1_CUTOFF]):
+        assert type(a) is type(b)
+
+
 # --------------------------------------------------------------------------
 # Stylizer plumbing (random weights: shapes and contracts only)
 # --------------------------------------------------------------------------

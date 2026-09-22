@@ -44,8 +44,18 @@ def adaptive_instance_normalization(
     return normalized * style_std + style_mean
 
 
-def build_vgg_encoder() -> nn.Sequential:
-    """VGG-19 truncated after relu4_1, matching the normalised checkpoint."""
+#: Index one past the final relu4_1 module in the full VGG-19 definition.
+RELU4_1_CUTOFF = 31
+
+
+def build_full_vgg() -> nn.Sequential:
+    """The complete normalised VGG-19, matching the published checkpoint.
+
+    ``vgg_normalised.pth`` stores the whole network, not a truncation, so the
+    checkpoint must be loaded into this full definition before slicing. The
+    module indices are what the state_dict keys refer to, so the layer order
+    here is fixed by the published file.
+    """
     return nn.Sequential(
         nn.Conv2d(3, 3, 1),
         nn.ReflectionPad2d(1), nn.Conv2d(3, 64, 3), nn.ReLU(),
@@ -59,8 +69,21 @@ def build_vgg_encoder() -> nn.Sequential:
         nn.ReflectionPad2d(1), nn.Conv2d(256, 256, 3), nn.ReLU(),
         nn.ReflectionPad2d(1), nn.Conv2d(256, 256, 3), nn.ReLU(),
         nn.MaxPool2d(2, 2, ceil_mode=True),
-        nn.ReflectionPad2d(1), nn.Conv2d(256, 512, 3), nn.ReLU(),
+        nn.ReflectionPad2d(1), nn.Conv2d(256, 512, 3), nn.ReLU(),   # relu4_1
+        nn.ReflectionPad2d(1), nn.Conv2d(512, 512, 3), nn.ReLU(),
+        nn.ReflectionPad2d(1), nn.Conv2d(512, 512, 3), nn.ReLU(),
+        nn.ReflectionPad2d(1), nn.Conv2d(512, 512, 3), nn.ReLU(),
+        nn.MaxPool2d(2, 2, ceil_mode=True),
+        nn.ReflectionPad2d(1), nn.Conv2d(512, 512, 3), nn.ReLU(),
+        nn.ReflectionPad2d(1), nn.Conv2d(512, 512, 3), nn.ReLU(),
+        nn.ReflectionPad2d(1), nn.Conv2d(512, 512, 3), nn.ReLU(),
+        nn.ReflectionPad2d(1), nn.Conv2d(512, 512, 3), nn.ReLU(),
     )
+
+
+def build_vgg_encoder() -> nn.Sequential:
+    """VGG-19 truncated after relu4_1: the AdaIN content/style encoder."""
+    return nn.Sequential(*list(build_full_vgg())[:RELU4_1_CUTOFF])
 
 
 def build_decoder() -> nn.Sequential:
@@ -125,7 +148,6 @@ class AdaINStyleTransfer(nn.Module):
         super().__init__()
         weights_dir = Path(weights_dir)
 
-        self.encoder = build_vgg_encoder()
         self.decoder = build_decoder()
 
         vgg_path = weights_dir / "vgg_normalised.pth"
@@ -135,13 +157,21 @@ class AdaINStyleTransfer(nn.Module):
             download_weights(VGG_URL, vgg_path, vgg_sha256)
             download_weights(DECODER_URL, decoder_path, decoder_sha256)
 
-        for path, module in ((vgg_path, self.encoder), (decoder_path, self.decoder)):
+        for path in (vgg_path, decoder_path):
             if not path.exists():
                 raise FileNotFoundError(
                     f"AdaIN weights missing: {path}. Run with download=True or "
                     "fetch them manually (see README.md)."
                 )
-            module.load_state_dict(torch.load(path, map_location="cpu"))
+
+        # The published checkpoint holds the COMPLETE VGG-19, so it is loaded
+        # in full and then truncated at relu4_1. Slicing first would leave the
+        # deeper layers as unexpected keys.
+        full_vgg = build_full_vgg()
+        full_vgg.load_state_dict(torch.load(vgg_path, map_location="cpu"))
+        self.encoder = nn.Sequential(*list(full_vgg)[:RELU4_1_CUTOFF])
+
+        self.decoder.load_state_dict(torch.load(decoder_path, map_location="cpu"))
 
         for param in self.parameters():
             param.requires_grad = False
