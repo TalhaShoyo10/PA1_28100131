@@ -308,3 +308,54 @@ def test_separability_is_deterministic() -> None:
 def test_separability_requires_two_domains() -> None:
     with pytest.raises(ValueError, match="at least 2 domains"):
         domain_separability([np.random.randn(10, 4)])
+
+
+# --------------------------------------------------------------------------
+# ERM checkpoint resolution
+# --------------------------------------------------------------------------
+
+
+def test_erm_checkpoint_resolves_without_a_method_block(tmp_path) -> None:
+    """Regression guard (2026-09-22).
+
+    evaluate_sketch.py is normally invoked with base.yaml, which carries no
+    ``method:`` block. Reading ``cfg.method.reuse_checkpoint_from``
+    unconditionally raised AttributeError before any model was evaluated.
+    """
+    from common.config import apply_overrides, load_config
+    from task3.evaluate_sketch import resolve_checkpoint
+
+    (tmp_path / "task2" / "source_only").mkdir(parents=True)
+    (tmp_path / "task2" / "source_only" / "best.pt").write_bytes(b"x")
+    (tmp_path / "task3" / "sam").mkdir(parents=True)
+    (tmp_path / "task3" / "sam" / "best.pt").write_bytes(b"x")
+
+    cfg = load_config("task3/configs/base.yaml")
+    assert "method" not in dict(cfg)
+    apply_overrides(cfg, [f"output.checkpoint_dir={tmp_path / 'task3'}"])
+
+    assert resolve_checkpoint(cfg, "erm").exists()
+    assert resolve_checkpoint(cfg, "sam").exists()
+
+
+def test_erm_resolution_honours_the_checkpoint_dir_override(tmp_path) -> None:
+    """The Drive location must win over the repository-relative default."""
+    from common.config import apply_overrides, load_config
+    from task3.evaluate_sketch import resolve_checkpoint
+
+    (tmp_path / "task2" / "source_only").mkdir(parents=True)
+    (tmp_path / "task2" / "source_only" / "best.pt").write_bytes(b"x")
+
+    cfg = load_config("task3/configs/base.yaml")
+    apply_overrides(cfg, [f"output.checkpoint_dir={tmp_path / 'task3'}"])
+    assert resolve_checkpoint(cfg, "erm").is_relative_to(tmp_path)
+
+
+def test_missing_erm_checkpoint_names_the_fix() -> None:
+    from common.config import apply_overrides, load_config
+    from task3.evaluate_sketch import resolve_checkpoint
+
+    cfg = load_config("task3/configs/base.yaml")
+    apply_overrides(cfg, ["output.checkpoint_dir=/definitely/absent/task3"])
+    with pytest.raises(FileNotFoundError, match="source_only.yaml"):
+        resolve_checkpoint(cfg, "erm")

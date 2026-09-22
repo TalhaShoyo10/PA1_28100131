@@ -41,18 +41,36 @@ LOGGER = get_logger("task3.evaluate")
 
 
 def resolve_checkpoint(cfg, run_name: str) -> Path:
-    """Locate a run's checkpoint, mapping ERM back to Task 2's Source-only."""
-    if run_name == "erm":
-        path = Path(cfg.method.reuse_checkpoint_from) if cfg.method.name == "erm" else Path(
-            "checkpoints/task2/source_only/best.pt"
-        )
-        if not path.exists():
-            raise FileNotFoundError(
-                f"ERM baseline checkpoint not found at {path}. Task 3 reuses "
-                "Task 2's Source-only model; train that first."
-            )
-        return path
-    return Path(cfg.output.checkpoint_dir) / run_name / "best.pt"
+    """Locate a run's checkpoint, mapping ERM back to Task 2's Source-only.
+
+    This script is normally invoked with ``base.yaml``, which carries no
+    ``method:`` block, so the ERM path is resolved from candidates rather than
+    from ``cfg.method``. Task 3's checkpoint directory is checked first because
+    an override such as ``--set output.checkpoint_dir=...`` must be honoured;
+    the repository-relative default is the final fallback.
+    """
+    if run_name != "erm":
+        return Path(cfg.output.checkpoint_dir) / run_name / "best.pt"
+
+    candidates: list[Path] = []
+    configured = dict(cfg).get("method")
+    if isinstance(configured, dict) and "reuse_checkpoint_from" in configured:
+        candidates.append(Path(configured["reuse_checkpoint_from"]))
+
+    task3_dir = Path(cfg.output.checkpoint_dir)
+    candidates.append(task3_dir.parent / "task2" / "source_only" / "best.pt")
+    candidates.append(Path("checkpoints/task2/source_only/best.pt"))
+
+    for path in candidates:
+        if path.exists():
+            return path
+
+    raise FileNotFoundError(
+        "ERM baseline checkpoint not found. Task 3 reuses Task 2's Source-only "
+        "model rather than retraining it; train that first with "
+        "`python task2/train.py --config task2/configs/source_only.yaml`. "
+        f"Looked in: {[str(p) for p in candidates]}"
+    )
 
 
 def load_model(path: Path, num_classes: int, device: str) -> PACSModel:
