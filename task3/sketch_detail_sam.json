@@ -1,0 +1,31 @@
+{
+  "per_class_sketch_accuracy": {
+    "dog": 41.06217616580311,
+    "elephant": 92.02702702702703,
+    "giraffe": 53.12084993359893,
+    "guitar": 92.43421052631578,
+    "horse": 87.25490196078431,
+    "house": 72.5,
+    "person": 51.24999999999999
+  },
+  "source_domain_separability": {
+    "separability": 85.33333333333334,
+    "chance": 33.333333333333336,
+    "n_domains": 3,
+    "n_per_domain": 333,
+    "n_train": 699,
+    "n_test": 300,
+    "domains": [
+      "art_painting",
+      "cartoon",
+      "photo"
+    ]
+  },
+  "sharpness_proxy": {
+    "loss_clean": 0.12992672622203827,
+    "loss_perturbed": 0.3259328305721283,
+    "delta_sharp": 0.19600610435009003,
+    "grad_norm": 3.0000951290130615,
+    "rho": 0.05
+  }
+}

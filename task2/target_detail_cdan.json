@@ -1,0 +1,13 @@
+{
+  "per_class_target_accuracy": {
+    "dog": 47.15025906735752,
+    "elephant": 70.94594594594594,
+    "giraffe": 64.14342629482071,
+    "guitar": 89.47368421052632,
+    "horse": 49.26470588235294,
+    "house": 97.5,
+    "person": 100.0
+  },
+  "domain_separability": 98.48901098901099,
+  "separability_chance": 50.0
+}

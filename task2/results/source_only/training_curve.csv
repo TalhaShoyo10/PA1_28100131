@@ -1,0 +1,2 @@
+epoch,steps,cls_loss,mean_source_val_macro_f1,mean_source_val_accuracy,worst_source_domain,worst_source_macro_f1,val_macro_f1_photo,val_accuracy_photo,val_macro_f1_art_painting,val_accuracy_art_painting,val_macro_f1_cartoon,val_accuracy_cartoon
+0,3,1.9314784208933513,28.78741415580519,38.52282466042933,art_painting,25.54352207140196,34.68208816222641,50.750750750750754,25.54352207140196,32.19512195121951,26.1366322337872,32.6226012793177

@@ -1,0 +1,142 @@
+{
+  "run_name": "dan_dg_lambda0.1",
+  "task": "task3",
+  "config": {
+    "task": "task3",
+    "seed": 6304,
+    "data": {
+      "name": "pacs",
+      "root": "data/PACS",
+      "sources": [
+        "photo",
+        "art_painting",
+        "cartoon"
+      ],
+      "target": "sketch",
+      "num_classes": 7,
+      "split_seed": 6304,
+      "val_fraction": 0.2,
+      "split_manifest": "shared/splits/pacs_sketch_seed6304.json",
+      "resize": 256,
+      "crop": 224,
+      "hflip": true,
+      "target_access_forbidden": true
+    },
+    "model": {
+      "backbone": "resnet18",
+      "weights": "ResNet18_Weights.IMAGENET1K_V1",
+      "feature_dim": 512,
+      "freeze_bn_stats": true
+    },
+    "train": {
+      "epochs": 30,
+      "optimizer": "adamw",
+      "lr": 0.0001,
+      "weight_decay": 0.0001,
+      "source_batch_per_domain": 8,
+      "target_batch": 0,
+      "early_stopping_patience": 5,
+      "num_workers": 2,
+      "discriminator_lr_multiplier": 10.0
+    },
+    "selection": {
+      "metric": "mean_source_val_macro_f1",
+      "mode": "max"
+    },
+    "evaluation": {
+      "source_domain_separability": {
+        "split_seed": 6304,
+        "test_fraction": 0.3,
+        "classifier": "logistic_regression",
+        "multi_class": "multinomial",
+        "C": 1.0,
+        "chance": 33.33
+      },
+      "sharpness_proxy": {
+        "batch_per_domain": 32,
+        "batch_seed": 6304,
+        "rho": 0.05,
+        "eval_mode": true
+      }
+    },
+    "output": {
+      "results_dir": "/content/drive/MyDrive/ATML_PA1/results/task3",
+      "checkpoint_dir": "/content/drive/MyDrive/ATML_PA1/checkpoints/task3",
+      "figures_dir": "figures/task3"
+    },
+    "smoke": {
+      "epochs": 1,
+      "max_batches_per_epoch": 3,
+      "limit_images_per_domain": 64
+    },
+    "_config_path": "/content/pa1/task3/configs/base.yaml",
+    "run_name": "dan_dg_lambda0.1",
+    "method": {
+      "name": "dan_dg",
+      "lambda_dg": 0.1,
+      "mmd": {
+        "kernel": "rbf",
+        "bandwidth_multipliers": [
+          0.5,
+          1.0,
+          2.0
+        ],
+        "bandwidth_estimator": "median_pairwise_sq_distance",
+        "per_pair_bandwidth": true,
+        "feature": "pre_classifier"
+      },
+      "pairs": [
+        [
+          "photo",
+          "art_painting"
+        ],
+        [
+          "photo",
+          "cartoon"
+        ],
+        [
+          "art_painting",
+          "cartoon"
+        ]
+      ],
+      "shares_mmd_implementation_with": "task2/methods/dan.py"
+    },
+    "study": {
+      "name": "lambda_dg_sweep",
+      "parameter": "method.lambda_dg",
+      "values": [
+        0.1,
+        1.0,
+        10.0
+      ],
+      "matched_with": "task2/configs/dan_lambda_study.yaml",
+      "analysis_only": true
+    },
+    "_overrides": [
+      "method.lambda_dg=0.1",
+      "run_name=dan_dg_lambda0.1",
+      "output.checkpoint_dir=/content/drive/MyDrive/ATML_PA1/checkpoints/task3",
+      "output.results_dir=/content/drive/MyDrive/ATML_PA1/results/task3"
+    ]
+  },
+  "metrics": {
+    "run_name": "dan_dg_lambda0.1",
+    "method": "dan_dg",
+    "best_epoch": 12,
+    "best_mean_source_val_macro_f1": 95.52985113517455,
+    "epochs_run": 18,
+    "checkpoint": "/content/drive/MyDrive/ATML_PA1/checkpoints/task3/dan_dg_lambda0.1/best.pt",
+    "target_seen_during_training": false,
+    "smoke": false
+  },
+  "notes": "",
+  "environment": {
+    "timestamp_utc": "2026-09-22T21:36:33+00:00",
+    "git_commit": "841a218",
+    "python": "3.13.15",
+    "platform": "Linux-6.6.122+-x86_64-with-glibc2.39",
+    "torch": "2.11.0+cu128",
+    "cuda_available": true,
+    "device_name": "Tesla T4"
+  }
+}

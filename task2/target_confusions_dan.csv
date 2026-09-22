@@ -1,0 +1,11 @@
+true_class,predicted_class,count
+dog,person,284
+giraffe,person,151
+horse,dog,135
+giraffe,dog,125
+person,house,110
+elephant,dog,94
+elephant,person,85
+horse,house,84
+horse,person,83
+elephant,house,79
