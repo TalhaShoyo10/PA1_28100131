@@ -8,6 +8,10 @@ import json
 from dataclasses import dataclass, asdict
 from pathlib import Path
 
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
 import numpy as np
 import torch
 from PIL import Image
