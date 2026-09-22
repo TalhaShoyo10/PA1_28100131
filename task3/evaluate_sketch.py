@@ -45,9 +45,14 @@ def resolve_checkpoint(cfg, run_name: str) -> Path:
 
     This script is normally invoked with ``base.yaml``, which carries no
     ``method:`` block, so the ERM path is resolved from candidates rather than
-    from ``cfg.method``. Task 3's checkpoint directory is checked first because
-    an override such as ``--set output.checkpoint_dir=...`` must be honoured;
-    the repository-relative default is the final fallback.
+    from ``cfg.method``.
+
+    The repository-relative default is used ONLY when the checkpoint directory
+    was not overridden. A run pointed at Drive via
+    ``--set output.checkpoint_dir=...`` must never silently fall back to a
+    local checkpoint: that would evaluate a different ERM baseline from the one
+    the run intended, and the shared-baseline comparison behind RQ4 would be
+    quietly invalid.
     """
     if run_name != "erm":
         return Path(cfg.output.checkpoint_dir) / run_name / "best.pt"
@@ -59,7 +64,13 @@ def resolve_checkpoint(cfg, run_name: str) -> Path:
 
     task3_dir = Path(cfg.output.checkpoint_dir)
     candidates.append(task3_dir.parent / "task2" / "source_only" / "best.pt")
-    candidates.append(Path("checkpoints/task2/source_only/best.pt"))
+
+    overridden = any(
+        str(o).startswith("output.checkpoint_dir=")
+        for o in dict(cfg).get("_overrides", [])
+    )
+    if not overridden:
+        candidates.append(Path("checkpoints/task2/source_only/best.pt"))
 
     for path in candidates:
         if path.exists():

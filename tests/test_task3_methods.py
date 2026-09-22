@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import pytest
 import torch
@@ -15,6 +17,9 @@ from task2.evaluation.domain_separability import (
 )
 from task3.methods.dan_dg import DANDG
 from task3.methods.sam import SAM, SAMOptimizer, sharpness_proxy
+
+#: Absolute repo root, for tests that chdir into a tmp directory.
+REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 @pytest.fixture
@@ -359,3 +364,40 @@ def test_missing_erm_checkpoint_names_the_fix() -> None:
     apply_overrides(cfg, ["output.checkpoint_dir=/definitely/absent/task3"])
     with pytest.raises(FileNotFoundError, match="source_only.yaml"):
         resolve_checkpoint(cfg, "erm")
+
+
+def test_override_suppresses_the_repo_relative_fallback(tmp_path, monkeypatch) -> None:
+    """An explicit checkpoint_dir must not fall back to a local checkpoint.
+
+    Regression guard: with the repository as cwd, `checkpoints/task2/
+    source_only/best.pt` can exist locally. A run pointed at Drive that
+    silently loaded it would evaluate a DIFFERENT ERM baseline from the one
+    intended, invalidating the shared-baseline comparison behind RQ4.
+    """
+    from common.config import apply_overrides, load_config
+    from task3.evaluate_sketch import resolve_checkpoint
+
+    # A local checkpoint exists at the repository-relative default.
+    monkeypatch.chdir(tmp_path)
+    local = tmp_path / "checkpoints" / "task2" / "source_only"
+    local.mkdir(parents=True)
+    (local / "best.pt").write_bytes(b"local")
+
+    cfg = load_config(REPO_ROOT / "task3" / "configs" / "base.yaml")
+    apply_overrides(cfg, [f"output.checkpoint_dir={tmp_path / 'elsewhere' / 'task3'}"])
+
+    with pytest.raises(FileNotFoundError):
+        resolve_checkpoint(cfg, "erm")
+
+
+def test_without_an_override_the_repo_relative_default_is_used(tmp_path, monkeypatch) -> None:
+    from common.config import load_config
+    from task3.evaluate_sketch import resolve_checkpoint
+
+    monkeypatch.chdir(tmp_path)
+    local = tmp_path / "checkpoints" / "task2" / "source_only"
+    local.mkdir(parents=True)
+    (local / "best.pt").write_bytes(b"local")
+
+    cfg = load_config(REPO_ROOT / "task3" / "configs" / "base.yaml")
+    assert resolve_checkpoint(cfg, "erm").read_bytes() == b"local"
