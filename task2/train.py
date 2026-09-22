@@ -103,10 +103,16 @@ def train(cfg, smoke: bool = False) -> dict:
     model = PACSModel(num_classes=cfg.data.num_classes, pretrained=True).to(device)
     method = build_method(cfg).to(device)
 
-    parameters = list(model.parameters()) + list(method.parameters())
-    optimizer = torch.optim.AdamW(
-        parameters, lr=cfg.train.lr, weight_decay=cfg.train.weight_decay
-    )
+    method_parameters = list(method.parameters())
+    param_groups = [{"params": list(model.parameters()), "lr": cfg.train.lr}]
+    if method_parameters:
+        param_groups.append(
+            {
+                "params": method_parameters,
+                "lr": cfg.train.lr * cfg.train.discriminator_lr_multiplier,
+            }
+        )
+    optimizer = torch.optim.AdamW(param_groups, weight_decay=cfg.train.weight_decay)
 
     target_stream = None
     if method.uses_target:

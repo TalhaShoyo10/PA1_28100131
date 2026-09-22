@@ -50,6 +50,10 @@ train:
   target_batch: 0                # no target data enters training
   early_stopping_patience: 5
   num_workers: 2
+  # Mirrors task2/configs/base.yaml. Task 3's methods (DAN-DG, SAM) own no
+  # separate parameters, so this has no effect here; it is kept identical so
+  # the shared-protocol test continues to compare like with like.
+  discriminator_lr_multiplier: 10.0
 
 selection:
   metric: mean_source_val_macro_f1

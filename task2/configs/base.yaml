@@ -41,6 +41,15 @@ train:
   target_batch: 24               # equal total source and target batch sizes
   early_stopping_patience: 5     # epochs without mean source-val macro-F1 gain
   num_workers: 2
+  # The backbone is PRETRAINED and needs a small learning rate; a randomly
+  # initialised domain discriminator does not. At a shared 1e-4 the
+  # discriminator stays near-random, and the gradient-reversal layer amplifies
+  # its noise into the backbone as alpha ramps up -- observed as catastrophic
+  # divergence in DANN and CDAN (domain_loss ~7.8e3 and ~2.8e4 respectively,
+  # macro-F1 collapsing to near chance). The reference DANN implementations
+  # give the discriminator a 10x higher rate for exactly this reason.
+  # Applies only to method-owned parameters; Source-only and DAN have none.
+  discriminator_lr_multiplier: 10.0
 
 selection:
   # Checkpoints are selected by mean macro-F1 across the three source

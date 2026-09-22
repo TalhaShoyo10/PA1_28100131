@@ -250,3 +250,25 @@ def test_matched_lambda_studies_use_identical_grid() -> None:
     assert t2.study.matched_with == "task3/configs/dan_dg_lambda_study.yaml"
     assert t3.study.matched_with == "task2/configs/dan_lambda_study.yaml"
     assert t2.study.analysis_only is True and t3.study.analysis_only is True
+
+
+def test_discriminator_gets_a_higher_learning_rate() -> None:
+    """Regression guard for the DANN/CDAN divergence (2026-09-22).
+
+    The backbone is pretrained and needs a small learning rate; a randomly
+    initialised discriminator does not. Training both at 1e-4 left the
+    discriminator near-random, and the gradient-reversal layer amplified its
+    noise into the backbone as alpha ramped -- DANN and CDAN both collapsed to
+    near-chance macro-F1 with domain losses in the thousands.
+    """
+    for task in ("task2", "task3"):
+        cfg = load_config(f"{task}/configs/base.yaml")
+        assert cfg.train.discriminator_lr_multiplier == 10.0, task
+
+
+def test_task2_and_task3_agree_on_discriminator_multiplier() -> None:
+    t2 = load_config("task2/configs/base.yaml")
+    t3 = load_config("task3/configs/base.yaml")
+    assert (
+        t2.train.discriminator_lr_multiplier == t3.train.discriminator_lr_multiplier
+    )
