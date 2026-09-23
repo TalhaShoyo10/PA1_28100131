@@ -59,6 +59,11 @@ head:
   weight_decay: 1.0e-4
   early_stopping_patience: 5      # epochs without improved val accuracy
   batch_size: 128
+  # Images decoded, normalized and encoded in chunks of this size. The
+  # STL-10 train split is 4,000 images; materializing it as one 224x224
+  # float32 tensor costs ~2.4 GB, and normalization doubles that, which
+  # exhausts Colab's RAM by the third backbone. Chunking caps the peak.
+  feature_chunk_size: 256
   seed: 6304
 
 zero_shot:

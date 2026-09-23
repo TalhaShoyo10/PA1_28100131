@@ -101,11 +101,16 @@ def load_training_features(cfg, backbone, device: str, limit: int | None = None)
         train_idx, val_idx = train_idx[:limit], val_idx[: max(2, limit // 4)]
 
     def features_for(indices):
-        images = [to_canvas(dataset[i][0]) for i in indices]
-        tensor = normalize_for_backbone(batch_to_tensor(images), backbone)
-        return extract_features(backbone, tensor, device=device), torch.tensor(
-            [int(labels[i]) for i in indices]
-        )
+        chunk_size = cfg.head.feature_chunk_size
+        outputs = []
+        for start in range(0, len(indices), chunk_size):
+            chunk = indices[start : start + chunk_size]
+            images = [to_canvas(dataset[i][0]) for i in chunk]
+            tensor = normalize_for_backbone(batch_to_tensor(images), backbone)
+            del images
+            outputs.append(extract_features(backbone, tensor, device=device))
+            del tensor
+        return torch.cat(outputs), torch.tensor([int(labels[i]) for i in indices])
 
     return features_for(train_idx), features_for(val_idx)
 
