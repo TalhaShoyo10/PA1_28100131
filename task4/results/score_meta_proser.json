@@ -1,0 +1,6 @@
+{
+  "num_known": 10,
+  "num_dummy": 5,
+  "mahalanobis_fitted_on": "cifar10_train_unaugmented",
+  "n_train_for_stats": 45000
+}
