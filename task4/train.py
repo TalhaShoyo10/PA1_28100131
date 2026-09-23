@@ -33,6 +33,36 @@ def validate(model, loader, device: str, num_classes: int = 10) -> float:
     return 100.0 * correct / max(1, total)
 
 
+def resolve_vanilla_checkpoint(cfg) -> Path:
+    """Locate the selected Vanilla checkpoint that PROSER initializes from.
+
+    ``method.init_from`` is repository-relative, so a run pointed elsewhere via
+    ``--set output.checkpoint_dir=...`` must resolve against that directory
+    first. The repository-relative default applies only when the directory was
+    not overridden: silently loading a different Vanilla checkpoint would break
+    the requirement that PROSER start from the SELECTED one.
+    """
+    candidates = [Path(cfg.output.checkpoint_dir) / "vanilla" / "best.pt"]
+
+    overridden = any(
+        str(o).startswith("output.checkpoint_dir=")
+        for o in dict(cfg).get("_overrides", [])
+    )
+    if not overridden:
+        candidates.append(Path(cfg.method.init_from))
+
+    for path in candidates:
+        if path.exists():
+            return path
+
+    raise FileNotFoundError(
+        "PROSER initializes from the selected Vanilla checkpoint, not from "
+        "scratch. Train it first with `python task4/train.py --config "
+        "task4/configs/vanilla.yaml`. Looked in: "
+        f"{[str(p) for p in candidates]}"
+    )
+
+
 def load_split(cfg) -> dict:
     """Load the committed CIFAR-10 split, generating it on first use."""
     manifest_path = Path(cfg.data.known.manifest)
@@ -83,12 +113,7 @@ def train(cfg, smoke: bool = False) -> dict:
     proser = None
 
     if method_name == "proser":
-        checkpoint_path = Path(cfg.method.init_from)
-        if not checkpoint_path.exists():
-            raise FileNotFoundError(
-                f"PROSER initializes from the selected Vanilla checkpoint, not "
-                f"from scratch. Missing: {checkpoint_path}. Train vanilla first."
-            )
+        checkpoint_path = resolve_vanilla_checkpoint(cfg)
         checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
         model.load_state_dict(checkpoint["model"])
         model.add_dummy_classifiers(cfg.method.dummy_classifiers)

@@ -322,3 +322,39 @@ def test_batch_is_split_into_two_equal_halves(proser_model) -> None:
     )
     assert components["mixup_loss"] > 0
     assert torch.isfinite(loss)
+
+
+# --------------------------------------------------------------------------
+# PROSER checkpoint resolution
+# --------------------------------------------------------------------------
+
+
+def test_proser_init_honours_the_checkpoint_dir_override(tmp_path) -> None:
+    """Regression guard (2026-09-23).
+
+    method.init_from is repository-relative, so a run pointed at Drive via
+    --set output.checkpoint_dir failed to find the Vanilla checkpoint that
+    PROSER must initialize from.
+    """
+    from common.config import apply_overrides, load_config
+    from task4.train import resolve_vanilla_checkpoint
+
+    vanilla = tmp_path / "task4" / "vanilla"
+    vanilla.mkdir(parents=True)
+    (vanilla / "best.pt").write_bytes(b"x")
+
+    cfg = load_config("task4/configs/proser.yaml")
+    apply_overrides(cfg, [f"output.checkpoint_dir={tmp_path / 'task4'}"])
+
+    assert resolve_vanilla_checkpoint(cfg).is_relative_to(tmp_path)
+
+
+def test_proser_init_does_not_fall_back_when_overridden() -> None:
+    """A different Vanilla checkpoint must never be loaded silently."""
+    from common.config import apply_overrides, load_config
+    from task4.train import resolve_vanilla_checkpoint
+
+    cfg = load_config("task4/configs/proser.yaml")
+    apply_overrides(cfg, ["output.checkpoint_dir=/definitely/absent/task4"])
+    with pytest.raises(FileNotFoundError, match="vanilla.yaml"):
+        resolve_vanilla_checkpoint(cfg)
