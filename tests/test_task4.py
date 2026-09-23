@@ -358,3 +358,37 @@ def test_proser_init_does_not_fall_back_when_overridden() -> None:
     apply_overrides(cfg, ["output.checkpoint_dir=/definitely/absent/task4"])
     with pytest.raises(FileNotFoundError, match="vanilla.yaml"):
         resolve_vanilla_checkpoint(cfg)
+
+
+def test_mixup_pairing_works_for_labels_on_any_device() -> None:
+    """Regression guard (2026-09-23).
+
+    torch.randint requires the generator's device to match the tensor being
+    sampled. A CPU generator with CUDA labels raised 'Expected a cuda device
+    type for generator but found cpu', which surfaced only on GPU because the
+    tests run on CPU. The index is now drawn on the CPU regardless.
+    """
+    generator = torch.Generator().manual_seed(6304)
+    labels = torch.tensor([0, 0, 1, 1, 2, 2])
+
+    partners = manifold_mixup_pairs(labels, generator)
+
+    assert partners.device == labels.device
+    assert (partners >= 0).all()
+    for i, p in enumerate(partners):
+        assert labels[i] != labels[p]
+
+    if torch.cuda.is_available():
+        cuda_labels = labels.cuda()
+        cuda_partners = manifold_mixup_pairs(
+            cuda_labels, torch.Generator().manual_seed(6304)
+        )
+        assert cuda_partners.device == cuda_labels.device
+        assert torch.equal(cuda_partners.cpu(), partners)
+
+
+def test_mixup_pairing_is_reproducible_from_a_seed() -> None:
+    labels = torch.tensor([0, 1, 2, 3, 0, 1, 2, 3])
+    first = manifold_mixup_pairs(labels, torch.Generator().manual_seed(6304))
+    second = manifold_mixup_pairs(labels, torch.Generator().manual_seed(6304))
+    assert torch.equal(first, second)

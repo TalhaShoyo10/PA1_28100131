@@ -16,14 +16,20 @@ def manifold_mixup_pairs(
     Mixing two examples of the same class would interpolate within one known
     region and produce a valid known example, not an unknown-like proxy.
     Returns partner indices; -1 where no different-class partner exists.
+
+    The partner index is drawn on the CPU even when ``labels`` is on a GPU:
+    PyTorch requires a generator's device to match the tensor being sampled,
+    and a CPU generator keeps the draw reproducible from one seed regardless
+    of where training runs. Only a single integer crosses the device boundary
+    per example, so the transfer cost is negligible.
     """
     partners = torch.full_like(labels, -1)
     for i, label in enumerate(labels):
         candidates = (labels != label).nonzero(as_tuple=True)[0]
         if candidates.numel() == 0:
             continue
-        choice = torch.randint(
-            candidates.numel(), (1,), generator=generator, device=candidates.device
+        choice = int(
+            torch.randint(candidates.numel(), (1,), generator=generator).item()
         )
         partners[i] = candidates[choice]
     return partners
