@@ -2,6 +2,10 @@
 data/
 !*/data/
 !*/data/*.py
+# Seed manifests: the saved image/index identifiers that make each
+# split reproducible. These are provenance records, not datasets, and
+# a grader needs them to reconstruct the exact splits.
+!*/data/*_seed*.json
 !shared/splits/
 datasets/
 *.tar
