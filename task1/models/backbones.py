@@ -106,9 +106,28 @@ class CLIPBackbone(FrozenBackbone):
                 "Install it with: pip install open_clip_torch"
             ) from exc
 
-        self.model, _, _ = open_clip.create_model_and_transforms(
-            model_name, pretrained=pretrained
-        )
+        # OpenAI's CLIP was trained with QuickGELU activations. Newer open_clip
+        # versions split the architecture, so the plain "ViT-B-32" name builds
+        # the non-QuickGELU variant and warns about the mismatch while still
+        # loading the OpenAI weights -- a silently WRONG forward pass, because
+        # the weights then run through a different activation than they were
+        # trained with. Requesting quick_gelu explicitly is what makes the model
+        # match the mandated pretrained='openai' checkpoint.
+        kwargs = {"pretrained": pretrained}
+        if pretrained == "openai":
+            kwargs["quick_gelu"] = True
+
+        try:
+            self.model, _, _ = open_clip.create_model_and_transforms(
+                model_name, **kwargs
+            )
+        except TypeError:
+            # Older open_clip has no quick_gelu argument; there the plain name
+            # already builds the QuickGELU variant for the openai tag.
+            self.model, _, _ = open_clip.create_model_and_transforms(
+                model_name, pretrained=pretrained
+            )
+
         self.tokenizer = open_clip.get_tokenizer(model_name)
         self.model_name = model_name
         self.freeze()
