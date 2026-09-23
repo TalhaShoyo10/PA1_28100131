@@ -1,0 +1,31 @@
+{
+  "total_generated": 240,
+  "accepted": 239,
+  "rejected": 1,
+  "acceptance_rate": 99.58333333333333,
+  "by_pair": {
+    "airplane__ship": {
+      "accepted": 47,
+      "rejected": 1
+    },
+    "bird__deer": {
+      "accepted": 48,
+      "rejected": 0
+    },
+    "bird__truck": {
+      "accepted": 48,
+      "rejected": 0
+    },
+    "dog__truck": {
+      "accepted": 48,
+      "rejected": 0
+    },
+    "monkey__ship": {
+      "accepted": 48,
+      "rejected": 0
+    }
+  },
+  "rejection_reasons": {
+    "saturation_collapse(4.8)": 1
+  }
+}

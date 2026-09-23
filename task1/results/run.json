@@ -69,7 +69,7 @@
     },
     "output": {
       "results_dir": "/content/drive/MyDrive/ATML_PA1/results/task1",
-      "figures_dir": "figures/task1",
+      "figures_dir": "/content/drive/MyDrive/ATML_PA1/figures/task1",
       "cache_dir": "task1/results/cache"
     },
     "smoke": {
@@ -210,7 +210,8 @@
       }
     },
     "_overrides": [
-      "output.results_dir=/content/drive/MyDrive/ATML_PA1/results/task1"
+      "output.results_dir=/content/drive/MyDrive/ATML_PA1/results/task1",
+      "output.figures_dir=/content/drive/MyDrive/ATML_PA1/figures/task1"
     ]
   },
   "metrics": {
@@ -254,8 +255,8 @@
   },
   "notes": "",
   "environment": {
-    "timestamp_utc": "2026-09-23T02:22:24+00:00",
-    "git_commit": "da07e01",
+    "timestamp_utc": "2026-09-23T10:33:16+00:00",
+    "git_commit": "b9e2a5b",
     "python": "3.13.15",
     "platform": "Linux-6.6.122+-x86_64-with-glibc2.39",
     "torch": "2.11.0+cu128",
