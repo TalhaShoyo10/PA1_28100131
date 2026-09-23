@@ -45,40 +45,50 @@ from task1.models.backbones import build_backbone
 LOGGER = get_logger("task1.run")
 
 
-def build_intervention_images(cfg, images, smoke: bool = False) -> dict:
-    """Build every intervention ONCE on the shared canvas.
+def build_intervention_builders(cfg, images, smoke: bool = False) -> dict:
+    """Return one builder per condition, all deterministic.
 
-    All models consume these identical tensors; only normalization differs.
+    Builders rather than tensors: 500 images at 224x224 float32 is ~0.30 GB per
+    condition, and there are 16 conditions. Materialising them all at once held
+    ~4.8 GB of RAM before a backbone was even loaded, which exhausted a free
+    Colab runtime when ResNet-50 arrived. Each condition is now built on demand
+    and released immediately after use.
+
+    Determinism is preserved: every builder is a pure function of the shared
+    canvas images and fixed settings, so each model still receives byte-identical
+    inputs no matter when the tensor is created.
     """
     interventions = cfg.interventions
-    conditions: dict[str, torch.Tensor] = {"clean": batch_to_tensor(images)}
-
-    conditions["grayscale"] = batch_to_tensor([grayscale(im) for im in images])
-
     degrees = interventions.hue_rotation.degrees
-    conditions[f"hue{int(degrees)}"] = batch_to_tensor(
-        [hue_rotate(im, degrees) for im in images]
-    )
-
     grid = interventions.patch_shuffle.grid[0]
     seed = interventions.patch_shuffle.seed
-    conditions["patch_shuffle"] = batch_to_tensor(
-        [
-            patch_shuffle(im, grid, permutation=patch_permutation(grid, seed, i))
-            for i, im in enumerate(images)
-        ]
-    )
+
+    builders: dict[str, callable] = {
+        "clean": lambda: batch_to_tensor(images),
+        "grayscale": lambda: batch_to_tensor([grayscale(im) for im in images]),
+        f"hue{int(degrees)}": lambda: batch_to_tensor(
+            [hue_rotate(im, degrees) for im in images]
+        ),
+        "patch_shuffle": lambda: batch_to_tensor(
+            [
+                patch_shuffle(im, grid, permutation=patch_permutation(grid, seed, i))
+                for i, im in enumerate(images)
+            ]
+        ),
+    }
 
     displacements = [0, 8] if smoke else interventions.translation.displacements
     for displacement in displacements:
         if displacement == 0:
             continue
         for direction in interventions.translation.directions:
-            conditions[f"translate_{displacement}_{direction}"] = batch_to_tensor(
-                [translate(im, displacement, direction) for im in images]
+            builders[f"translate_{displacement}_{direction}"] = (
+                lambda d=displacement, dr=direction: batch_to_tensor(
+                    [translate(im, d, dr) for im in images]
+                )
             )
 
-    return conditions
+    return builders
 
 
 def load_training_features(cfg, backbone, device: str, limit: int | None = None):
@@ -116,8 +126,8 @@ def run(cfg, smoke: bool = False) -> dict:
     class_names = list(cfg.data.classes)
 
     LOGGER.info("Building interventions for %d images", len(images))
-    conditions = build_intervention_images(cfg, images, smoke)
-    LOGGER.info("Conditions: %s", sorted(conditions))
+    builders = build_intervention_builders(cfg, images, smoke)
+    LOGGER.info("Conditions: %s", sorted(builders))
 
     results_dir = Path(cfg.output.results_dir)
     figures_dir = Path(cfg.output.figures_dir)
@@ -145,7 +155,8 @@ def run(cfg, smoke: bool = False) -> dict:
         head_info[backbone_name] = info
         LOGGER.info("head val accuracy %.2f (epoch %d)", info["best_val_accuracy"], info["best_epoch"])
 
-        clean_predictions, clean_probabilities = predict(backbone, head, conditions["clean"], device)
+        clean_tensor = builders["clean"]()
+        clean_predictions, clean_probabilities = predict(backbone, head, clean_tensor, device)
         clean_result = evaluate_condition(
             backbone_name, "clean", y_true, clean_predictions, clean_probabilities,
             cfg.data.num_classes,
@@ -153,14 +164,15 @@ def run(cfg, smoke: bool = False) -> dict:
         rows.append(clean_result.to_dict())
 
         clean_features = extract_features(
-            backbone, normalize_for_backbone(conditions["clean"], backbone), device=device
+            backbone, normalize_for_backbone(clean_tensor, backbone), device=device
         )
 
         translation_results: dict[int, list] = {}
 
-        for condition, tensor in conditions.items():
+        for condition, builder in builders.items():
             if condition == "clean":
                 continue
+            tensor = builder()
 
             predictions, probabilities = predict(backbone, head, tensor, device)
             result = evaluate_condition(
@@ -208,6 +220,9 @@ def run(cfg, smoke: bool = False) -> dict:
                     {**settings, **displacement_from_clean(clean_2d, transformed_2d)},
                     results_dir / f"tsne_{backbone_name}_{condition}.json",
                 )
+                del transformed_features
+
+            del tensor
 
         translation_rows = translation_curve(
             {0: [clean_result], **translation_results}
@@ -221,7 +236,7 @@ def run(cfg, smoke: bool = False) -> dict:
             prompts = [cfg.zero_shot.prompt_template.format(**{"class": c}) for c in class_names]
             text_embeddings = backbone.encode_text(prompts)
             zs_predictions, zs_probabilities = predict_zero_shot(
-                backbone, conditions["clean"], text_embeddings, device
+                backbone, clean_tensor, text_embeddings, device
             )
             rows.append(
                 evaluate_condition(
@@ -237,8 +252,12 @@ def run(cfg, smoke: bool = False) -> dict:
                 results_dir / "clip_zeroshot.json",
             )
 
-        del backbone, head
-        torch.cuda.empty_cache() if device == "cuda" else None
+        del backbone, head, clean_tensor, clean_features
+        import gc
+
+        gc.collect()
+        if device == "cuda":
+            torch.cuda.empty_cache()
 
     save_csv(rows, results_dir / "intervention_results.csv")
     save_csv(stability_rows, results_dir / "representation_stability.csv")
@@ -246,7 +265,7 @@ def run(cfg, smoke: bool = False) -> dict:
 
     summary = {
         "n_images": len(images),
-        "conditions": sorted(conditions),
+        "conditions": sorted(builders),
         "backbones": sorted(dict.keys(cfg.backbones)),
         "image_ids": image_ids[:10],
         "smoke": smoke,
