@@ -24,6 +24,11 @@ from task1.analysis.evaluate_bias import (
     train_linear_head,
     translation_curve,
 )
+from task1.analysis.cue_conflict_eval import (
+    example_cases,
+    load_conflict_images,
+    load_manifest,
+)
 from task1.analysis.representation import (
     cosine_stability,
     displacement_from_clean,
@@ -139,7 +144,38 @@ def run(cfg, smoke: bool = False) -> dict:
 
     rows: list[dict] = []
     stability_rows: list[dict] = []
+    shape_bias_rows: list[dict] = []
+    conflict_examples: list[dict] = []
     head_info: dict[str, dict] = {}
+
+    conflict_dir = Path(cfg.data.interventions_dir) / "cue_conflict"
+    conflict_records: list[dict] = []
+    conflict_images: list = []
+    content_images: list = []
+    if conflict_dir.exists():
+        conflict_records = load_manifest(conflict_dir)
+        conflict_images = load_conflict_images(conflict_dir, conflict_records)
+        by_id = {image_id: image for image_id, image in zip(image_ids, images)}
+        missing = [
+            r["content_image_id"] for r in conflict_records
+            if r["content_image_id"] not in by_id
+        ]
+        if missing:
+            raise KeyError(
+                f"{len(missing)} cue-conflict content images are absent from the "
+                f"evaluation subset (first: {missing[0]}). The conflicts were "
+                "generated from a different subset; regenerate them."
+            )
+        content_images = [by_id[r["content_image_id"]] for r in conflict_records]
+        LOGGER.info(
+            "Cue conflict: %d accepted images from %s",
+            len(conflict_records), conflict_dir,
+        )
+    else:
+        LOGGER.warning(
+            "No cue-conflict directory at %s -- shape bias will NOT be computed. "
+            "Generate it with task1/data/make_cue_conflicts.py.", conflict_dir,
+        )
 
     for backbone_name in dict.keys(cfg.backbones):
         LOGGER.info("=== %s ===", backbone_name)
@@ -237,6 +273,50 @@ def run(cfg, smoke: bool = False) -> dict:
             results_dir / f"translation_{backbone_name}.csv",
         )
 
+        if conflict_records:
+            conflict_tensor = batch_to_tensor(conflict_images)
+            conflict_predictions, _ = predict(
+                backbone, head, conflict_tensor, device
+            )
+            decisions = classify_cue_conflict(
+                conflict_predictions,
+                np.array([r["content_class"] for r in conflict_records]),
+                np.array([r["style_class"] for r in conflict_records]),
+            )
+            shape_bias_rows.append({"model": backbone_name, **decisions})
+            LOGGER.info(
+                "cue conflict: shape %d texture %d other %d | shape bias %.2f coverage %.2f",
+                decisions["n_shape"], decisions["n_texture"], decisions["n_other"],
+                decisions["shape_bias"], decisions["coverage"],
+            )
+
+            for case in example_cases(
+                conflict_records, conflict_predictions, class_names
+            ):
+                conflict_examples.append({"model": backbone_name, **case})
+
+            conflict_features = extract_features(
+                backbone, normalize_for_backbone(conflict_tensor, backbone),
+                device=device,
+            )
+            content_features = extract_features(
+                backbone,
+                normalize_for_backbone(batch_to_tensor(content_images), backbone),
+                device=device,
+            )
+            stability = cosine_stability(content_features, conflict_features)
+            stability_rows.append(
+                {
+                    "model": backbone_name,
+                    "condition": "cue_conflict",
+                    "cosine_stability": stability["cosine_stability"],
+                    "std": stability["std"],
+                    "n": stability["n"],
+                    "n_degenerate": stability["n_degenerate"],
+                }
+            )
+            del conflict_tensor, conflict_features, content_features
+
         if backbone_name == "clip_vitb32":
             prompts = [cfg.zero_shot.prompt_template.format(**{"class": c}) for c in class_names]
             text_embeddings = backbone.encode_text(prompts)
@@ -267,6 +347,16 @@ def run(cfg, smoke: bool = False) -> dict:
     save_csv(rows, results_dir / "intervention_results.csv")
     save_csv(stability_rows, results_dir / "representation_stability.csv")
     save_json(head_info, results_dir / "linear_heads.json")
+
+    if shape_bias_rows:
+        save_csv(shape_bias_rows, results_dir / "shape_bias.csv")
+        save_csv(conflict_examples, results_dir / "cue_conflict_examples.csv")
+        import shutil
+
+        for name in ("manifest.csv", "summary.json"):
+            source = conflict_dir / name
+            if source.exists():
+                shutil.copy(source, results_dir / f"cue_conflict_{name}")
 
     summary = {
         "n_images": len(images),
