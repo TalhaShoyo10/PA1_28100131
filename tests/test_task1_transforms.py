@@ -283,3 +283,47 @@ def test_registry_dispatch(image) -> None:
 def test_registry_rejects_unknown_name(image) -> None:
     with pytest.raises(KeyError, match="Unknown intervention"):
         apply_intervention(image, "rotate_180")
+
+
+# --------------------------------------------------------------------------
+# Translation curve
+# --------------------------------------------------------------------------
+
+
+def test_translation_curve_anchors_at_full_consistency() -> None:
+    """Regression guard (2026-09-23).
+
+    At displacement 0 the only entry is the clean baseline, whose
+    consistency_vs_clean is NaN by construction. np.nanmean over a lone NaN
+    warned 'Mean of empty slice' and produced NaN, leaving the curve without
+    its anchor. Consistency at delta=0 is 100 by definition.
+    """
+    from task1.analysis.evaluate_bias import ConditionResult, translation_curve
+
+    clean = ConditionResult(
+        "resnet50", "clean", 95.0, 94.0, 0.9, float("nan"), float("nan"), 500
+    )
+    shifted = [
+        ConditionResult("resnet50", f"translate_8_{d}", 90.0, 89.0, 0.85, 92.0, -5.0, 500)
+        for d in ("up", "down", "left", "right")
+    ]
+
+    rows = translation_curve({0: [clean], 8: shifted})
+
+    assert rows[0]["displacement"] == 0
+    assert rows[0]["consistency"] == 100.0
+    assert rows[1]["consistency"] == 92.0
+    assert rows[1]["n_directions"] == 4
+
+
+def test_translation_curve_emits_no_warnings() -> None:
+    import warnings
+
+    from task1.analysis.evaluate_bias import ConditionResult, translation_curve
+
+    clean = ConditionResult(
+        "vit_b16", "clean", 95.0, 94.0, 0.9, float("nan"), float("nan"), 500
+    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        translation_curve({0: [clean]})

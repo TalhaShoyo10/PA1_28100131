@@ -153,17 +153,34 @@ def classify_cue_conflict(
 def translation_curve(
     results_by_displacement: dict[int, list[ConditionResult]]
 ) -> list[dict]:
-    """Average accuracy and consistency across the four cardinal directions."""
+    """Average accuracy and consistency across the four cardinal directions.
+
+    At displacement 0 the only entry is the clean baseline, whose
+    ``consistency_vs_clean`` is NaN because it has no transformed counterpart.
+    Consistency there is 100 by definition -- an image compared with itself --
+    so the curve starts at its true anchor instead of a NaN.
+    """
     rows = []
     for displacement in sorted(results_by_displacement):
         entries = results_by_displacement[displacement]
+        values = [
+            e.consistency_vs_clean
+            for e in entries
+            if not np.isnan(e.consistency_vs_clean)
+        ]
+
+        if values:
+            consistency = float(np.mean(values))
+        elif displacement == 0:
+            consistency = 100.0
+        else:
+            consistency = float("nan")
+
         rows.append(
             {
                 "displacement": displacement,
                 "accuracy": float(np.mean([e.accuracy for e in entries])),
-                "consistency": float(
-                    np.nanmean([e.consistency_vs_clean for e in entries])
-                ),
+                "consistency": consistency,
                 "n_directions": len(entries),
             }
         )
