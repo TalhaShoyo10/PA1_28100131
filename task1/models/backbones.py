@@ -106,30 +106,29 @@ class CLIPBackbone(FrozenBackbone):
                 "Install it with: pip install open_clip_torch"
             ) from exc
 
-        # OpenAI's CLIP was trained with QuickGELU activations. Newer open_clip
-        # versions split the architecture, so the plain "ViT-B-32" name builds
-        # the non-QuickGELU variant and warns about the mismatch while still
-        # loading the OpenAI weights -- a silently WRONG forward pass, because
-        # the weights then run through a different activation than they were
-        # trained with. Requesting quick_gelu explicitly is what makes the model
-        # match the mandated pretrained='openai' checkpoint.
-        kwargs = {"pretrained": pretrained}
-        if pretrained == "openai":
-            kwargs["quick_gelu"] = True
+        # OpenAI's CLIP was trained with QuickGELU activations. open_clip >= 2.24
+        # exposes that as a SEPARATE architecture, "ViT-B-32-quickgelu", so the
+        # plain name builds the non-QuickGELU variant and loads the OpenAI
+        # weights into it anyway -- a silently wrong forward pass, since trained
+        # weights then run through a different activation. open_clip warns but
+        # proceeds.
+        #
+        # The architecture is selected by NAME: create_model_and_transforms has
+        # no quick_gelu parameter, so passing one is swallowed by **kwargs and
+        # does nothing. The mandated ViT-B-32 / pretrained='openai' pairing is
+        # unchanged; this selects the variant those weights were trained as.
+        resolved_name = model_name
+        if pretrained == "openai" and not model_name.endswith("-quickgelu"):
+            candidate = f"{model_name}-quickgelu"
+            if candidate in set(open_clip.list_models()):
+                resolved_name = candidate
 
-        try:
-            self.model, _, _ = open_clip.create_model_and_transforms(
-                model_name, **kwargs
-            )
-        except TypeError:
-            # Older open_clip has no quick_gelu argument; there the plain name
-            # already builds the QuickGELU variant for the openai tag.
-            self.model, _, _ = open_clip.create_model_and_transforms(
-                model_name, pretrained=pretrained
-            )
-
-        self.tokenizer = open_clip.get_tokenizer(model_name)
-        self.model_name = model_name
+        self.model, _, _ = open_clip.create_model_and_transforms(
+            resolved_name, pretrained=pretrained
+        )
+        self.tokenizer = open_clip.get_tokenizer(resolved_name)
+        self.model_name = resolved_name
+        self.requested_model_name = model_name
         self.freeze()
 
     def normalization(self) -> transforms.Normalize:

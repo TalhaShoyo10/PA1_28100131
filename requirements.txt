@@ -12,7 +12,7 @@ torch>=2.2
 torchvision>=0.17
 
 # --- Task 1: CLIP backbone ---
-open_clip_torch>=2.24.0
+open_clip_torch>=2.24.0   # >=2.24 exposes ViT-B-32-quickgelu, required for the openai tag
 
 # --- Numerics, metrics, classical models ---
 numpy>=1.26
