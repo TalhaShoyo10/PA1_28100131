@@ -44,6 +44,11 @@ checkpoints/
 
 # --- Generated intervention images / feature caches ---
 task1/data/generated/
+# Also match the Colab symlink form: the trailing-slash rules above match
+# directories, but on Colab these paths are symlinks into Drive, which git
+# treats as files and would otherwise offer to commit.
+task1/data/generated
+/data
 task4/cache/
 **/cache/
 
