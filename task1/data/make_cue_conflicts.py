@@ -271,12 +271,19 @@ def main() -> None:
     save_csv([r.to_dict() for r in records], output_dir / "manifest.csv")
     (output_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
 
-    if not args.smoke and summary["accepted"] < cc.target_valid_conflicts:
+    required = dict(cc).get("required_valid_conflicts", 200)
+    if not args.smoke and summary["accepted"] < required:
         LOGGER.warning(
-            "Only %d accepted conflicts, below the required %d. "
-            "Increase generation count or revisit the rejection thresholds "
-            "BEFORE any model evaluation.",
-            summary["accepted"], cc.target_valid_conflicts,
+            "Only %d accepted conflicts, below the assignment minimum of %d. "
+            "Raise interventions.cue_conflict.target_valid_conflicts and "
+            "regenerate BEFORE any model evaluation. Do not loosen the "
+            "rejection thresholds to reach the count.",
+            summary["accepted"], required,
+        )
+    elif not args.smoke:
+        LOGGER.info(
+            "%d accepted conflicts (assignment minimum %d) from %d generated.",
+            summary["accepted"], required, summary["total_generated"],
         )
 
 

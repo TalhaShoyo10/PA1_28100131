@@ -57,7 +57,13 @@ interventions:
     style_strength: 1.0           # AdaIN alpha; 1.0 = full stylization
     class_pairs_min: 5            # at least five unordered pairs
     bidirectional: true           # generate A->B and B->A when feasible
-    target_valid_conflicts: 200   # at least 200 valid conflicts
+    # The assignment's hard minimum: at least 200 VALID (accepted) conflicts.
+    required_valid_conflicts: 200
+    # How many to GENERATE. Kept above the minimum so that rejected
+    # stylizations do not push the accepted count below it. Raising this is
+    # the legitimate response to a shortfall; loosening the rejection
+    # thresholds to admit failed stylizations is not.
+    target_valid_conflicts: 240
     balance: [class_pair, direction]
     rejection_rule:
       # Defined BEFORE model evaluation. Model predictions may NOT be used to
@@ -70,7 +76,7 @@ interventions:
         - style_texture_applied         # stylization visibly took effect
         - no_saturation_collapse        # output not washed out / degenerate
       record_counts: [accepted, rejected]
-      manual_review: true               # visual rule, applied by Talha
+      automated: true                   # image statistics only, reproducible
     hypothesis: >
       Following Geirhos et al. (2019), the ImageNet-supervised ResNet-50 is
       expected to show the lowest shape bias. ViT-B/16 and CLIP are NOT assumed
