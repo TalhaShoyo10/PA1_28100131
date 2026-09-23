@@ -8,7 +8,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from common.config import load_config
+from common.config import apply_overrides, load_config
 from common.logging import get_logger
 from common.seed import set_seed
 from shared.pacs import PACS_CLASSES
@@ -23,9 +23,13 @@ def main() -> None:
     )
     parser.add_argument("--config", type=Path, default=Path("task2/configs/base.yaml"))
     parser.add_argument("--force", action="store_true", help="Overwrite an existing manifest.")
+    parser.add_argument(
+        "--set", dest="overrides", nargs="*", default=None, metavar="KEY=VALUE",
+        help="Override config entries, e.g. --set data.root=/path/to/PACS",
+    )
     args = parser.parse_args()
 
-    cfg = load_config(args.config)
+    cfg = apply_overrides(load_config(args.config), args.overrides)
     set_seed(cfg.seed)
 
     output_path = Path(cfg.data.split_manifest)
