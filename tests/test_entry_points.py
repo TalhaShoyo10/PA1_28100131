@@ -52,3 +52,18 @@ def test_entry_point_bootstraps_sys_path(script: str) -> None:
     """The bootstrap must be present, not merely working by accident."""
     source = (REPO_ROOT / script).read_text(encoding="utf-8")
     assert "sys.path.insert" in source, f"{script} lacks a sys.path bootstrap"
+
+
+@pytest.mark.parametrize("script", ENTRY_POINTS)
+def test_every_entry_point_accepts_config_overrides(script: str) -> None:
+    """--set must work everywhere, so Colab can redirect paths and settings.
+
+    Regression guard: the Task 1 data scripts had their own minimal parsers
+    without --set, so an override that worked for training silently failed
+    with 'unrecognized arguments'.
+    """
+    result = subprocess.run(
+        [sys.executable, str(REPO_ROOT / script), "--help"],
+        cwd=REPO_ROOT, capture_output=True, text=True, timeout=120,
+    )
+    assert "--set" in result.stdout, f"{script} does not accept --set"

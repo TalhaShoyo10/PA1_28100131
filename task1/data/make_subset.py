@@ -14,7 +14,7 @@ import numpy as np
 from PIL import Image
 from torchvision import datasets
 
-from common.config import load_config
+from common.config import apply_overrides, load_config
 from common.logging import get_logger, save_json
 from common.seed import set_seed
 
@@ -115,9 +115,13 @@ def load_eval_subset(cfg) -> list[tuple[str, Image.Image, int]]:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build the Task 1 evaluation subset.")
     parser.add_argument("--config", type=Path, default=Path("task1/configs/base.yaml"))
+    parser.add_argument(
+        "--set", dest="overrides", nargs="*", default=None, metavar="KEY=VALUE",
+        help="Override config entries.",
+    )
     args = parser.parse_args()
 
-    cfg = load_config(args.config)
+    cfg = apply_overrides(load_config(args.config), args.overrides)
     manifest = build_eval_subset(cfg)
     path = save_json(manifest, cfg.data.eval_subset.manifest)
 

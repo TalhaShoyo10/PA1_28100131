@@ -16,7 +16,7 @@ import numpy as np
 import torch
 from PIL import Image
 
-from common.config import load_config
+from common.config import apply_overrides, load_config
 from common.logging import get_logger, save_csv
 from common.seed import set_seed
 from task1.data.transforms import CANVAS_SIZE, to_canvas, to_tensor
@@ -216,9 +216,18 @@ def main() -> None:
     parser.add_argument("--output-dir", type=Path, default=None)
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--smoke", action="store_true")
+    parser.add_argument(
+        "--set",
+        dest="overrides",
+        nargs="*",
+        default=None,
+        metavar="KEY=VALUE",
+        help="Override config entries, e.g. --set interventions.cue_conflict."
+             "target_valid_conflicts=240",
+    )
     args = parser.parse_args()
 
-    cfg = load_config(args.config)
+    cfg = apply_overrides(load_config(args.config), args.overrides)
     set_seed(cfg.seed)
 
     from task1.data.make_subset import load_eval_subset
