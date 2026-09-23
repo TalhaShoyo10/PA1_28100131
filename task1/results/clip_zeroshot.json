@@ -1,0 +1,15 @@
+{
+  "prompts": [
+    "a photo of a airplane.",
+    "a photo of a bird.",
+    "a photo of a car.",
+    "a photo of a cat.",
+    "a photo of a deer.",
+    "a photo of a dog.",
+    "a photo of a horse.",
+    "a photo of a monkey.",
+    "a photo of a ship.",
+    "a photo of a truck."
+  ],
+  "agreement_with_head": 99.0
+}

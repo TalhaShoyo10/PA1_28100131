@@ -1,0 +1,5 @@
+model,displacement,accuracy,consistency,n_directions
+vit_b16,0,97.39999999999999,100.0,1
+vit_b16,8,97.64999999999999,98.64999999999999,4
+vit_b16,16,97.25,98.85,4
+vit_b16,32,96.25,97.8,4

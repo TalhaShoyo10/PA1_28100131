@@ -1,0 +1,17 @@
+{
+  "resnet50": {
+    "best_val_accuracy": 98.0,
+    "best_epoch": 10,
+    "epochs_run": 16
+  },
+  "vit_b16": {
+    "best_val_accuracy": 98.2,
+    "best_epoch": 5,
+    "epochs_run": 11
+  },
+  "clip_vitb32": {
+    "best_val_accuracy": 98.8,
+    "best_epoch": 6,
+    "epochs_run": 12
+  }
+}

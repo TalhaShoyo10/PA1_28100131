@@ -1,0 +1,5 @@
+model,displacement,accuracy,consistency,n_directions
+clip_vitb32,0,98.4,100.0,1
+clip_vitb32,8,98.30000000000001,99.1,4
+clip_vitb32,16,98.0,98.69999999999999,4
+clip_vitb32,32,97.14999999999999,98.54999999999998,4

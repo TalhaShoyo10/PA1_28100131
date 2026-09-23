@@ -1,0 +1,265 @@
+{
+  "run_name": "task1",
+  "task": "task1",
+  "config": {
+    "task": "task1",
+    "seed": 6304,
+    "data": {
+      "name": "stl10",
+      "root": "data/stl10",
+      "num_classes": 10,
+      "classes": [
+        "airplane",
+        "bird",
+        "car",
+        "cat",
+        "deer",
+        "dog",
+        "horse",
+        "monkey",
+        "ship",
+        "truck"
+      ],
+      "split_seed": 6304,
+      "val_fraction": 0.2,
+      "eval_subset": {
+        "size": 500,
+        "balanced": true,
+        "seed": 6304,
+        "manifest": "task1/data/eval_subset_seed6304.json"
+      },
+      "image_size": 224,
+      "interventions_dir": "task1/data/generated"
+    },
+    "backbones": {
+      "resnet50": {
+        "source": "torchvision",
+        "weights": "ResNet50_Weights.IMAGENET1K_V2",
+        "feature": "global_average_pool",
+        "feature_dim": 2048
+      },
+      "vit_b16": {
+        "source": "torchvision",
+        "weights": "ViT_B_16_Weights.IMAGENET1K_V1",
+        "feature": "class_token",
+        "feature_dim": 768
+      },
+      "clip_vitb32": {
+        "source": "open_clip",
+        "model_name": "ViT-B-32",
+        "pretrained": "openai",
+        "feature": "image_embedding",
+        "normalize_embedding": true,
+        "feature_dim": 512
+      }
+    },
+    "head": {
+      "epochs": 50,
+      "optimizer": "adamw",
+      "lr": 0.001,
+      "weight_decay": 0.0001,
+      "early_stopping_patience": 5,
+      "batch_size": 128,
+      "feature_chunk_size": 256,
+      "seed": 6304
+    },
+    "zero_shot": {
+      "prompt_template": "a photo of a {class}.",
+      "use_logit_scale": true
+    },
+    "output": {
+      "results_dir": "/content/drive/MyDrive/ATML_PA1/results/task1",
+      "figures_dir": "figures/task1",
+      "cache_dir": "task1/results/cache"
+    },
+    "smoke": {
+      "eval_subset_size": 20,
+      "head_epochs": 1,
+      "cue_conflict_pairs": 1
+    },
+    "_config_path": "/content/pa1/task1/configs/base.yaml",
+    "run_name": "interventions",
+    "interventions": {
+      "grayscale": {
+        "type": "grayscale",
+        "keep_channels": 3,
+        "luma": "itu_r_601_2",
+        "hypothesis": "Removing chroma while preserving geometry and luminance texture should cost little accuracy for all three backbones, because ImageNet and CLIP-scale pretraining both contain substantial grayscale and low-saturation imagery. Any model that loses a lot here is relying on colour as a primary cue.\n",
+        "metrics": [
+          "accuracy_change",
+          "prediction_consistency",
+          "representation_stability"
+        ]
+      },
+      "hue_rotation": {
+        "type": "hue_rotation",
+        "degrees": 90,
+        "preserves": [
+          "geometry",
+          "edges",
+          "luminance",
+          "saturation",
+          "texture_structure"
+        ],
+        "changes": [
+          "hue_angle"
+        ],
+        "hypothesis": "If a model encodes object identity largely through shape and texture, a 90-degree hue rotation should leave predictions mostly intact. Larger drops are expected for classes whose typical colour is diagnostic (e.g. deer/horse browns, sky-blue backgrounds for airplane/bird), so a class-conditional drop pattern is more informative than the mean.\n",
+        "metrics": [
+          "accuracy_change",
+          "prediction_consistency",
+          "representation_stability"
+        ]
+      },
+      "cue_conflict": {
+        "type": "style_transfer",
+        "method": "adain",
+        "style_strength": 1.0,
+        "class_pairs_min": 5,
+        "bidirectional": true,
+        "required_valid_conflicts": 200,
+        "target_valid_conflicts": 240,
+        "balance": [
+          "class_pair",
+          "direction"
+        ],
+        "rejection_rule": {
+          "defined_before_evaluation": true,
+          "uses_model_predictions": false,
+          "criteria": [
+            "content_structure_visible",
+            "style_texture_applied",
+            "no_saturation_collapse"
+          ],
+          "record_counts": [
+            "accepted",
+            "rejected"
+          ],
+          "automated": true
+        },
+        "hypothesis": "Following Geirhos et al. (2019), the ImageNet-supervised ResNet-50 is expected to show the lowest shape bias. ViT-B/16 and CLIP are NOT assumed to be shape-biased in advance: architecture, pretraining data, supervision and augmentation are confounded, so any ordering must be argued from the measured counts. Coverage is reported alongside shape bias because a high shape-bias value resting on few shape-or-texture decisions is weak.\n",
+        "metrics": [
+          "shape_bias",
+          "coverage",
+          "decision_counts",
+          "representation_stability"
+        ]
+      },
+      "translation": {
+        "type": "translation",
+        "displacements": [
+          0,
+          8,
+          16,
+          32
+        ],
+        "directions": [
+          "up",
+          "down",
+          "left",
+          "right"
+        ],
+        "padding": "reflect",
+        "hypothesis": "Convolution encourages translation equivariance, but stride, pooling, padding and the global-average-pool readout make the final ResNet classifier only approximately shift-invariant. ViT's learned absolute positional encoding gives no built-in equivariance, so a steeper decline with displacement is plausible. Degradation should be monotone in displacement for all models; the interesting quantity is the relative slope, not the intercept.\n",
+        "metrics": [
+          "accuracy_vs_displacement",
+          "consistency_vs_displacement",
+          "representation_stability"
+        ]
+      },
+      "patch_shuffle": {
+        "type": "patch_permutation",
+        "grid": [
+          4,
+          4
+        ],
+        "non_identity": true,
+        "seed": 6304,
+        "shared_across_models": true,
+        "note": "The 4x4 pixel grid deliberately does not match ViT's 16x16 token size. The experiment concerns reliance on coherent global spatial arrangement, not the mechanics of a particular tokenization.\n",
+        "hypothesis": "Patch shuffling destroys global object structure while preserving all pixels and most local texture. Models relying on local texture statistics should degrade least. A confident prediction after shuffling is not necessarily a sensible one, so mean max confidence is reported alongside accuracy to expose confidently-wrong behaviour.\n",
+        "metrics": [
+          "accuracy_change",
+          "prediction_consistency",
+          "mean_max_confidence",
+          "representation_stability"
+        ]
+      }
+    },
+    "representation_analysis": {
+      "required_for": [
+        "grayscale",
+        "cue_conflict",
+        "translation",
+        "patch_shuffle"
+      ],
+      "cosine_stability": true,
+      "visualization": {
+        "method": "tsne",
+        "perplexity": 30,
+        "n_iter": 1000,
+        "init": "pca",
+        "learning_rate": "auto",
+        "metric": "cosine",
+        "seed": 6304,
+        "fit_on": "combined_clean_and_transformed",
+        "color_by": "ground_truth_class",
+        "marker_by": "condition",
+        "cross_backbone_coordinates_comparable": false,
+        "fixed_image_subset": true
+      }
+    },
+    "_overrides": [
+      "output.results_dir=/content/drive/MyDrive/ATML_PA1/results/task1"
+    ]
+  },
+  "metrics": {
+    "n_images": 500,
+    "conditions": [
+      "clean",
+      "grayscale",
+      "hue90",
+      "patch_shuffle",
+      "translate_16_down",
+      "translate_16_left",
+      "translate_16_right",
+      "translate_16_up",
+      "translate_32_down",
+      "translate_32_left",
+      "translate_32_right",
+      "translate_32_up",
+      "translate_8_down",
+      "translate_8_left",
+      "translate_8_right",
+      "translate_8_up"
+    ],
+    "backbones": [
+      "clip_vitb32",
+      "resnet50",
+      "vit_b16"
+    ],
+    "image_ids": [
+      "test_00003",
+      "test_00029",
+      "test_00035",
+      "test_00042",
+      "test_00049",
+      "test_00081",
+      "test_00095",
+      "test_00097",
+      "test_00116",
+      "test_00131"
+    ],
+    "smoke": false
+  },
+  "notes": "",
+  "environment": {
+    "timestamp_utc": "2026-09-23T02:22:24+00:00",
+    "git_commit": "da07e01",
+    "python": "3.13.15",
+    "platform": "Linux-6.6.122+-x86_64-with-glibc2.39",
+    "torch": "2.11.0+cu128",
+    "cuda_available": true,
+    "device_name": "Tesla T4"
+  }
+}
