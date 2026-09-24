@@ -264,14 +264,7 @@ def test_proser_csa_and_mls_use_known_logits_only() -> None:
     assert cfg.scores.placeholder_detection.calibration_set == "cifar10_val"
 
 
-def test_rpl_is_scaffold_only() -> None:
-    """The optional extension must not masquerade as completed work."""
-    cfg = load_config("task4/configs/rpl.yaml")
-    assert cfg.method.implemented is False
-    assert cfg.method.score.convention == "larger_is_more_novel"
-
-
-@pytest.mark.parametrize("name", ["vanilla", "gcsc", "proser", "rpl"])
+@pytest.mark.parametrize("name", ["vanilla", "gcsc", "proser"])
 def test_task4_configs_keep_unknowns_evaluation_only(name: str) -> None:
     cfg = load_config(f"task4/configs/{name}.yaml")
     assert cfg.data.unknown.evaluation_only is True

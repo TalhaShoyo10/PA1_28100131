@@ -31,7 +31,6 @@ METHOD_COLORS = {
     "vanilla": PALETTE[0],
     "gcsc": PALETTE[1],
     "proser": PALETTE[2],
-    "rpl": PALETTE[3],
 }
 
 BACKBONE_COLORS = {

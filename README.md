@@ -16,7 +16,7 @@ produced them.
 git clone <repository-url>
 cd pa1-beyond-iid
 pip install -r requirements.txt
-python -m pytest tests/ -q          # 322 tests, no datasets required
+python -m pytest tests/ -q          # 379 tests, no datasets required
 ```
 
 Run any task with an explicit config:
@@ -33,12 +33,13 @@ Add `--smoke` for a fast reduced-scale sanity check (never for reported results)
 
 ```text
 common/      seed, metrics, logging, config loader, plotting
+scripts/     make_figures.py — figures built from committed results
 shared/      PACS dataset + protocol, multi-kernel MMD  (Tasks 2 and 3)
 task1/       inductive biases: interventions, backbones, representation analysis
 task2/       UDA: Source-only, DAN, DANN, CDAN
 task3/       DG: ERM (reused), DAN-DG, SAM
 task4/       OSR: Vanilla, GCSC, PROSER, post-hoc scores
-tests/       322 tests covering protocol compliance and method behaviour
+tests/       379 tests covering protocol compliance and method behaviour
 figures/     generated figures
 ```
 
@@ -105,7 +106,8 @@ python task1/scripts/run_task1.py       --config task1/configs/interventions.yam
 ```
 
 Outputs: `task1/results/` (intervention metrics, representation stability,
-translation curves, cue-conflict manifest) and `figures/task1/` (t-SNE plots).
+translation curves, shape bias and coverage, cue-conflict manifest and example
+decisions) and `figures/task1/` (t-SNE plots, translation curve).
 
 ### Task 2 — Unsupervised Domain Adaptation
 
@@ -155,6 +157,19 @@ for m in vanilla gcsc proser; do
 done
 python task4/evaluate_osr.py --config task4/configs/vanilla.yaml
 ```
+
+### Figures
+
+The evaluation scripts emit the t-SNE plots (Task 1) and the score
+distributions (Task 4). The remaining figures are built from the committed
+CSVs, so this needs no GPU and no re-evaluation:
+
+```bash
+python scripts/make_figures.py
+```
+
+Writes the Task 1 translation curve and the Task 2, λ-study and Task 3
+training curves under `figures/`.
 
 ---
 
