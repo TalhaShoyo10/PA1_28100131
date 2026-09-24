@@ -52,8 +52,8 @@
       }
     },
     "output": {
-      "results_dir": "task2/results",
-      "checkpoint_dir": "checkpoints/task2",
+      "results_dir": "/content/drive/MyDrive/ATML_PA1/results/task2",
+      "checkpoint_dir": "/content/drive/MyDrive/ATML_PA1/checkpoints/task2",
       "figures_dir": "figures/task2"
     },
     "smoke": {
@@ -66,20 +66,24 @@
     "method": {
       "name": "source_only",
       "uses_target_during_training": false
-    }
+    },
+    "_overrides": [
+      "output.checkpoint_dir=/content/drive/MyDrive/ATML_PA1/checkpoints/task2",
+      "output.results_dir=/content/drive/MyDrive/ATML_PA1/results/task2"
+    ]
   },
   "metrics": {
     "run_name": "source_only",
     "method": "source_only",
-    "best_epoch": 0,
-    "best_mean_source_val_macro_f1": 28.78741415580519,
-    "epochs_run": 1,
-    "checkpoint": "checkpoints/task2/source_only/best.pt",
-    "smoke": true
+    "best_epoch": 6,
+    "best_mean_source_val_macro_f1": 93.8733331464844,
+    "epochs_run": 12,
+    "checkpoint": "/content/drive/MyDrive/ATML_PA1/checkpoints/task2/source_only/best.pt",
+    "smoke": false
   },
   "notes": "",
   "environment": {
-    "timestamp_utc": "2026-09-22T18:33:03+00:00",
+    "timestamp_utc": "2026-09-22T18:45:59+00:00",
     "git_commit": "fd9ee16",
     "python": "3.13.15",
     "platform": "Linux-6.6.122+-x86_64-with-glibc2.39",
