@@ -83,3 +83,6 @@ task1/models/weights/
 
 # Agent instruction files and the assignment PDF (private working material)
 ATML-PA1.pdf
+
+# Overleaf upload bundle (regenerate; do not track)
+report/overleaf_upload.zip
