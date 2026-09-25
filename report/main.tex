@@ -1,0 +1,540 @@
+% ============================================================================
+% ATML PA1 - Beyond IID
+% EE-5102 / CS-6304, Fall 2026
+%
+% SCAFFOLD. Every \todo{...} marks text YOU write. Tables and figures are
+% pre-filled from the committed results so no number needs transcribing.
+%
+% Compile on Overleaf: upload this file, neurips_2024.sty from PA0, and the
+% figures/ directory from the repository root.
+%
+% 8 PAGES of main content. References do not count. Watch the budget:
+%   0.75 abstract+intro | 0.75 setup | 1.25 x4 tasks | 1.25 cross-task | 0.25 conclusion
+% ============================================================================
+
+\documentclass{article}
+
+% Use \usepackage{neurips_2024} for the submission version (adds line numbers
+% and the "Submitted to" footer). \usepackage[final]{neurips_2024} for camera
+% ready. Check which the PA0 handout specifies.
+\usepackage[final]{neurips_2024}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{nicefrac}
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{xcolor}
+
+% Draft helper: shows what still needs writing. DELETE the definition and
+% replace with \newcommand{\todo}[1]{} before submitting, to be certain no
+% placeholder text survives into the PDF.
+\newcommand{\todo}[1]{\textcolor{red}{\textbf{[TODO:} #1\textbf{]}}}
+
+\graphicspath{{../figures/}{figures/}}
+
+\title{Beyond IID: Inductive Biases, Domain Shift, and Open-Set Recognition}
+
+\author{%
+  Talha \\
+  \texttt{28100131} \\
+  EE-5102 / CS-6304, Fall 2026 \\
+}
+
+\begin{document}
+
+\maketitle
+
+% ============================================================================
+\begin{abstract}
+\todo{5-7 sentences. One line on the unifying question: what should a
+representation preserve, what should it discard, when should it refuse to
+answer. Then one line per task naming the headline finding. Candidates for
+the strongest three: alignment strength anti-correlated with transfer;
+DAN-DG at the mandated lambda reached near-chance domain separability and
+below-chance Sketch accuracy; PROSER optimised its placeholder objective to
+zero and still underperformed its own baseline.}
+
+\textbf{Repository:} \url{https://github.com/TalhaShoyo10/PA1_28100131}
+% ^ The PDF requires the repository link at the END of the abstract.
+\end{abstract}
+
+% ============================================================================
+\section{Introduction}
+\label{sec:intro}
+
+\todo{2-3 paragraphs. (i) Standard supervised learning assumes train and test
+are drawn IID from one distribution over a closed label set, and state why
+each half of that assumption fails in practice. (ii) Name the four settings
+and say what each one isolates: Task 1 which cues a representation depends on,
+Task 2 adaptation with unlabelled target data, Task 3 generalisation with no
+target data at all, Task 4 inputs outside the label set. (iii) State the
+research questions, grouped rather than listed one by one -- you have 16 and
+no space to enumerate them.}
+
+% ============================================================================
+\section{Experimental Setup}
+\label{sec:setup}
+
+\todo{Keep this tight, it is scaffolding not evidence. Cover: seed 6304
+everywhere with committed split manifests; Tasks 2 and 3 share one PACS
+protocol module, which is what makes the cross-task comparison valid; the
+backbones per task; model selection on source validation only. State the
+single-seed limitation ONCE here and refer back to it rather than repeating
+it in every task section.}
+
+\paragraph{Information boundaries.}
+\todo{One short paragraph. Target labels never influence Task 2 selection;
+no Sketch image reaches Task 3 training, diagnostics or selection; CIFAR-100
+is evaluation-only in Task 4; cue-conflict filtering is model-blind. Say that
+these are enforced in code and covered by tests, since the PDF asks you to
+confirm them before submitting.}
+
+% ============================================================================
+\section{Task 1: Inductive Biases and Representations}
+\label{sec:task1}
+
+\todo{2-3 sentences of setup: STL-10, 500-image class-balanced test subset,
+three frozen backbones plus CLIP zero-shot, interventions generated once on a
+common canvas so every model sees byte-identical images. Note the linear
+probes land within 0.8 points of each other (98.00 / 98.20 / 98.80), which is
+the precondition for attributing differences to representations rather than
+head quality.}
+
+\begin{table}[t]
+  \centering
+  \caption{Accuracy under each intervention, with the change from clean.
+  Mean maximum confidence in parentheses. CLIP's confidences are a softmax
+  over \texttt{logit\_scale}-scaled prompt similarities, not a trained head,
+  so only relative changes within a model are comparable.}
+  \label{tab:t1-interventions}
+  \begin{tabular}{lcccc}
+    \toprule
+    & Clean & Grayscale & Hue $90^\circ$ & Patch shuffle \\
+    \midrule
+    ResNet-50     & 97.4 (0.939) & 95.2 ($-2.2$) & 92.6 ($-4.8$) & 88.6 ($-8.8$) \\
+    ViT-B/16      & 97.4 (0.943) & 95.6 ($-1.8$) & 94.6 ($-2.8$) & 90.4 ($-7.0$) \\
+    CLIP ViT-B/32 & 98.4 (0.274) & 96.2 ($-2.2$) & 96.0 ($-2.4$) & 83.8 ($-14.6$) \\
+    \midrule
+    CLIP zero-shot & 98.0 (0.955) & -- & -- & -- \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{table}[t]
+  \centering
+  \caption{Cue-conflict decisions over 239 accepted images across five class
+  pairs. Shape bias $=N_{\text{shape}}/(N_{\text{shape}}+N_{\text{texture}})$;
+  coverage $=(N_{\text{shape}}+N_{\text{texture}})/N_{\text{total}}$.}
+  \label{tab:t1-shapebias}
+  \begin{tabular}{lccccc}
+    \toprule
+    & Shape & Texture & Other & Shape bias (\%) & Coverage (\%) \\
+    \midrule
+    ResNet-50     & 86  & 67 & 86 & 56.21 & 64.02 \\
+    ViT-B/16      & 115 & 30 & 94 & 79.31 & 60.67 \\
+    CLIP ViT-B/32 & 125 & 26 & 88 & 82.78 & 63.18 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{table}[t]
+  \centering
+  \caption{Cosine stability between paired clean and transformed features.
+  Cue conflict composites two images rather than transforming one, so its
+  column is not directly comparable with the others; the informative quantity
+  is the spread across models.}
+  \label{tab:t1-stability}
+  \begin{tabular}{lcccc}
+    \toprule
+    & Grayscale & Hue $90^\circ$ & Patch shuffle & Cue conflict \\
+    \midrule
+    ResNet-50     & 0.788 & 0.760 & 0.715 & 0.269 \\
+    ViT-B/16      & 0.739 & 0.718 & 0.649 & 0.260 \\
+    CLIP ViT-B/32 & 0.898 & 0.893 & 0.729 & 0.662 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\textwidth]{task1/translation_curve.pdf}
+  \caption{Accuracy and prediction consistency against translation
+  displacement, averaged over the four cardinal directions.}
+  \label{fig:t1-translation}
+\end{figure}
+
+\subsection{Colour and cue conflict (RQ1)}
+\todo{The hue-minus-grayscale gap isolates dependence on colour being CORRECT
+rather than merely present: ResNet $-2.6$, ViT $-1.0$, CLIP $-0.2$. Explain
+why that difference is the right quantity and not either number alone. Then
+note the shape-bias ordering is identical and say what the agreement of two
+independent interventions buys you. Finally address coverage: at 60.7-64.0\%
+roughly a third of conflicts resolved to neither class, and ResNet's
+n\_other (86) nearly equals its n\_shape (86), so its 56.21 rests on a slim
+margin.}
+
+\subsection{Spatial structure (RQ2)}
+\todo{Translation slopes are $-0.028$ / $-0.040$ / $-0.041$ per pixel, total
+drop over 32px 0.90 / 1.15 / 1.25. Patch shuffle is $-8.8$ / $-7.0$ /
+$-14.6$. Argue why each transformation favours a different architecture:
+translation preserves arrangement and moves everything rigidly, which
+convolutional weight sharing handles natively; patch shuffle preserves pixels
+and destroys arrangement, which attacks hierarchical composition and favours
+attention. Report that ViT is non-monotone (rises at d=8) and judge whether
++0.25 over 500 images is signal. Then the confidence column: ResNet retains
+94.0\% of its clean confidence while losing 8.8 points, CLIP retains 72.7\%
+while losing 14.6 -- say which failure mode is worse and why.}
+
+\subsection{Predictions versus representations (RQ3)}
+\todo{The dissociation: ViT has the LOWEST patch-shuffle stability (0.649)
+and the SMALLEST accuracy drop ($-7.0$); CLIP has mid-range stability (0.729)
+and the LARGEST drop ($-14.6$). Argue what this shows about what cosine
+stability measures -- features can move far and stay linearly separable.
+Then CLIP's cue-conflict stability of 0.662, 2.5x the other two, the largest
+gap anywhere in this task. Finally zero-shot versus head: 98.0 vs 98.4 with
+99.0\% agreement, a CONTROLLED comparison since the features are identical
+and only the readout differs.}
+
+\subsection{Attribution (RQ4)}
+\todo{State plainly which comparisons are controlled. ResNet vs ViT share
+pretraining data and supervision, so differences there are attributable to
+architecture. CLIP head vs CLIP zero-shot share features entirely. CLIP vs
+the other two is confounded -- architecture, pretraining scale, supervision
+type and augmentation all differ at once. Give the most plausible account of
+CLIP's behaviour and say explicitly what prevents you from isolating it.}
+
+% ============================================================================
+\section{Task 2: Unsupervised Domain Adaptation}
+\label{sec:task2}
+
+\todo{2-3 sentences: PACS with Photo, Art and Cartoon labelled and Sketch
+available unlabelled; ResNet-18; selection on mean source-validation macro-F1;
+target labels touched only after every checkpoint is frozen. One sentence each
+on what DAN, DANN and CDAN align -- keep method exposition minimal, the PDF
+asks you to spend space on evidence instead.}
+
+\begin{table}[t]
+  \centering
+  \caption{PACS with Sketch as target. Domain separability is a
+  logistic-regression probe on frozen features, binary source-vs-target,
+  chance $=50.0$. $\Delta$ is the change in target accuracy relative to
+  Source-only. The three $\lambda$ rows are the controlled alignment-strength
+  study; $\lambda=1$ coincides with DAN by construction.}
+  \label{tab:t2-main}
+  \begin{tabular}{lccccc}
+    \toprule
+    Method & Mean source & Worst source & Separability & Target & $\Delta$ \\
+    \midrule
+    Source-only & 93.88 & 89.51 & 99.59 & 71.47 & --- \\
+    DAN         & 94.69 & 92.93 & 83.52 & 58.56 & $-12.90$ \\
+    DANN        & 93.91 & 92.93 & 98.63 & 80.55 & $+9.09$ \\
+    CDAN        & 92.06 & 89.51 & 98.49 & 65.05 & $-6.41$ \\
+    \midrule
+    DAN $\lambda=0.1$  & 95.10 & --- & 97.39 & 70.86 & $-0.61$ \\
+    DAN $\lambda=1.0$  & 94.69 & --- & 83.52 & 58.56 & $-12.90$ \\
+    DAN $\lambda=10.0$ & 21.68 & --- & 75.55 & 4.07  & $-67.40$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{figure}[t]
+  \centering
+  \begin{subfigure}{0.49\textwidth}
+    \includegraphics[width=\textwidth]{task2/training_curves.pdf}
+    \caption{Four methods.}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}{0.49\textwidth}
+    \includegraphics[width=\textwidth]{task2/lambda_study_curves.pdf}
+    \caption{Alignment-strength study.}
+  \end{subfigure}
+  \caption{Classification loss and MMD penalty during training.}
+  \label{fig:t2-curves}
+\end{figure}
+
+\subsection{The domain gap (RQ1)}
+\todo{Photo validation 97.90 against Sketch 71.47, a 26-point gap. Then the
+class level: dog$\to$horse 245, giraffe$\to$horse 147, dog$\to$elephant 132.
+Note horse acts as a sink class and say what absorbing errors that way
+suggests about which information the representation lost on Sketch.}
+
+\subsection{Separability and transfer (RQ2)}
+\todo{Your strongest negative result -- state it plainly. DAN reduced
+separability most (99.59 to 83.52) and had the worst target accuracy
+($-12.90$); DANN barely moved it (98.63) and gained the most ($+9.09$). Argue
+what follows for separability as a proxy objective. Support with class-level
+evidence: is DAN's loss uniform or concentrated? A possible mechanism worth
+arguing, not asserting: MMD is a fixed statistic that can be reduced by
+degrading features, whereas an adversarial discriminator at chance cannot be
+pushed further, so DANN's pressure is bounded.}
+
+\subsection{Conditional versus marginal alignment (RQ3)}
+\todo{DAN and DANN match the marginal $P(f)$; CDAN matches the conditional
+$P(f\mid\hat{y})$ through the multilinear map. Explain what marginal
+alignment cannot see -- two domains can overlap perfectly while their classes
+are swapped. Then the result: CDAN is bimodal per class, house $+26.25$ and
+person $+23.13$ against horse $-33.95$ and elephant $-15.68$, net $-6.41$.
+Connect back to RQ1: horse was the baseline's sink class, so CDAN conditioned
+on pseudo-labels that were already wrong and aligned toward them. Argue
+whether that supports or undercuts the claim that conditioning preserves
+semantic structure.}
+
+\subsection{Alignment strength (RQ4)}
+\todo{The sweep is monotone in every column -- more alignment, lower
+separability, worse target -- with no interior optimum. Then the model
+selection question the PDF asks: source accuracy would have picked
+$\lambda=0.1$, which is also the best of the three on target, so source-side
+selection works here. But qualify it: the source gap between 0.1 and 1.0 is
+0.41 while the target gap is 12.3, so the ranking was right and the magnitude
+signal was almost absent. Finally use Figure~\ref{fig:t2-curves}: at
+$\lambda=10$ the classification loss is flat at $\ln 7\approx1.95$ for every
+epoch while the MMD penalty is HIGHER than $\lambda=1$'s. Say what it means
+that the penalty was not even minimised well.}
+
+% ============================================================================
+\section{Task 3: Domain Generalization}
+\label{sec:task3}
+
+\todo{2-3 sentences: identical PACS protocol to Task 2 but Sketch is
+unavailable to training, diagnostics and model selection. ERM is Task 2's
+Source-only checkpoint reused rather than retrained, which is what makes the
+cross-task comparison in Section~\ref{sec:cross} valid. One sentence each on
+DAN-DG (pairwise source MMD) and SAM (two-pass sharpness-aware update).}
+
+\begin{table}[t]
+  \centering
+  \caption{PACS with Sketch unseen. Source-domain separability is three-way
+  over Photo, Art and Cartoon, chance $=33.33$. $\Delta_{\text{sharp}}$ is the
+  validation-loss increase after one normalised gradient-ascent perturbation
+  of radius $0.05$. Chance accuracy for seven classes is $14.3$.}
+  \label{tab:t3-main}
+  \begin{tabular}{lccccc}
+    \toprule
+    Method & Mean source & Worst source & Separability & $\Delta_{\text{sharp}}$ & Sketch \\
+    \midrule
+    ERM                  & 93.88 & 89.51 & 89.33 & 1.2796 & 71.47 \\
+    DAN-DG ($\lambda=1$) & 21.68 & 17.27 & 54.67 & 0.3917 & 4.07 \\
+    SAM                  & 95.88 & 94.63 & 85.33 & 0.1960 & 71.57 \\
+    \midrule
+    DAN-DG $\lambda=0.1$  & 95.50 & 93.90 & 70.33 & 0.3071 & 71.67 \\
+    DAN-DG $\lambda=10.0$ & 21.68 & 17.27 & 58.33 & 0.2598 & 4.07 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.85\textwidth]{task3/training_curves.pdf}
+  \caption{Classification loss and MMD penalty for DAN-DG and SAM. DAN-DG's
+  classification loss remains at $\ln 7 \approx 1.95$ throughout while its
+  alignment penalty falls steadily.}
+  \label{fig:t3-curves}
+\end{figure}
+
+\subsection{Do source metrics predict Sketch? (RQ1)}
+\todo{SAM has the best mean-source AND worst-source performance and
+essentially ties ERM on Sketch. DAN-DG at $\lambda=1$ fails on both source
+and Sketch, so its failure IS visible from source alone. Answer whether source
+validation is a usable selection signal here, then identify class-level
+failures invisible in the aggregate using the per-class Sketch deltas.}
+
+\subsection{Invariance and discriminability (RQ2)}
+\todo{DAN-DG at $\lambda=1$ produced separability 54.67 against a 33.3 chance
+floor -- the most domain-invariant representation anywhere in this
+assignment -- and 4.07\% Sketch accuracy, BELOW the 14.3\% chance floor. State
+that the objective succeeded and the task was destroyed. Your direct evidence
+is Figure~\ref{fig:t3-curves}: classification loss pinned at $\ln 7$ while
+MMD falls. Explain why collapse is the cheapest way to satisfy pairwise MMD
+and why MMD cannot distinguish collapse from genuine alignment. Use the sweep
+for the dose-response: $\lambda=0.1$ helps slightly, $\lambda\geq1$
+collapses.}
+
+\subsection{Sharpness and generalization (RQ3)}
+\todo{SAM reduced the proxy 6.5x (1.2796 to 0.1960), so the method worked.
+Then the disagreement: by flatness SAM $>$ DAN-DG $>$ ERM, by Sketch
+SAM $\approx$ ERM $\gg$ DAN-DG. You have two counterexamples -- DAN-DG is
+flatter than ERM and scores below chance, and SAM's much flatter minimum
+bought $+0.10$ points. Argue why a collapsed model registers as flat: there is
+nothing left to disturb. State the proxy's limits as the PDF requires: one
+perturbation, one direction, one radius, one batch, local stability rather
+than global flatness.}
+
+\subsection{The value of unlabelled target data (RQ4)}
+\todo{At matched $\lambda=1$: target-aware DAN reaches 58.56, target-free
+DAN-DG reaches 4.07, both against the same ERM baseline of 71.47. Then the
+limitation the PDF asks for explicitly: the two differ in WHAT they align
+(source-target versus three pairwise source-source), not only in target
+access. Three penalties at equal $\lambda$ means higher effective pressure,
+so target access and alignment geometry vary together and the comparison
+cannot establish that target access alone caused the difference.}
+
+% ============================================================================
+\section{Task 4: Open-Set Recognition}
+\label{sec:task4}
+
+\todo{2-3 sentences: CIFAR-10 known, fixed CIFAR-100 classes as near and far
+unknowns, evaluation only. Logits and features cached once so every score sees
+identical model outputs. Thresholds calibrated at 95\% known acceptance on
+CIFAR-10 validation.}
+
+\todo{TABLE 1: post-hoc scores on the frozen vanilla model -- MSP, MLS,
+Energy, Mahalanobis, each with near/far/all AUROC and calibrated rejection.
+Source: task4/results/posthoc\_score\_comparison.csv}
+
+\todo{TABLE 2: Vanilla, GCSC and PROSER with CSA and near/far metrics, MLS as
+the common score, plus a row for PROSER's placeholder score.
+Source: task4/results/trained\_model\_comparison.csv}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.9\textwidth]{task4/score_distributions.pdf}
+  \caption{Score distributions for known and unknown inputs.}
+  \label{fig:t4-scores}
+\end{figure}
+
+\subsection{Semantic similarity and rejection (RQ1)}
+\todo{Near failures are semantically defensible (bus$\to$truck three times,
+pickup\_truck$\to$automobile, fox$\to$dog); far failures are not
+(mushroom$\to$cat, wardrobe$\to$cat, bottle$\to$cat, chair$\to$airplane).
+Note that cat absorbs three of five far unknowns and that margins are large,
+so these are confidently wrong rather than borderline.}
+
+\subsection{What each score captures (RQ2)}
+\todo{Mahalanobis is BEST on vanilla (86.01 all-AUROC) and WORST on GCSC
+(84.82), a $-2.25$ near swing. Argue what that shows about ranking post-hoc
+scores independently of the training procedure.}
+
+\subsection{Positive augmentation (RQ3)}
+\todo{GCSC gained $+0.19$ CSA and improved MSP, MLS and Energy by roughly two
+points while degrading Mahalanobis by $1.18$. Explain why a logit-based and a
+feature-distance score could move in opposite directions.}
+
+\subsection{Placeholders (RQ4)}
+\todo{PROSER cost 0.25 CSA and lost on every post-hoc score. Its
+placeholder\_loss reached 0.0000 by epoch 30, so the objective was optimised
+perfectly. Its own score is worst on near (76.47) and competitive on far
+(91.87). Argue where interpolation between known classes is insufficient.
+State the caveat: this is a reproduction at the paper's defaults with a single
+seed, so the claim is that it did not improve HERE, not that it does not
+work.}
+
+% ============================================================================
+\section{Cross-task Discussion}
+\label{sec:cross}
+
+\subsection{Visual cues and distribution shift}
+\todo{The PDF requires this be QUALITATIVE, not causal -- different datasets,
+architectures and training procedures. The connection worth drawing: Sketch
+removes exactly the cues Task 1 measures reliance on, being colourless,
+texture-free and shape-preserving. Task 1's most colour-dependent and least
+shape-biased model is ResNet-50. Say what that would predict and say clearly
+what prevents you from testing it directly.}
+
+\subsection{Invariance versus discriminability}
+\todo{Your central cross-task evidence. Identify one case where invariance
+removed noise (DAN-DG $\lambda=0.1$, separability 89.33 to 70.33 with Sketch
+unchanged) and one where it removed class information (DAN-DG $\lambda=1$,
+separability 54.67 with Sketch 4.07). Then the harder question: is there
+anything visible AT TRAINING TIME that separates the two? The classification
+loss curve is the direct signal.}
+
+\subsection{The importance of target domain access}
+\todo{Draw on Section~\ref{sec:task3} RQ4. Keep the confound explicit.}
+
+\subsection{Recognition versus rejection}
+\todo{Do representations that classify better also reject better? GCSC says
+partly, PROSER says no. Use the near/far split to identify where a confident
+classifier should abstain instead.}
+
+\subsection{Overall synthesis}
+\todo{The claim your data supports across all four tasks: a proxy objective
+optimised successfully can make the real objective worse. Four instances --
+DAN (lowest separability, worst target), DAN-DG (near-chance separability,
+below-chance Sketch), PROSER (placeholder loss to zero, AUROC below its own
+baseline), and weakly SAM (sharpness 0.196 against ERM's 1.280, Sketch
+statistically tied). Then answer the three-part question the PDF poses: what
+should a robust representation PRESERVE, what should it become INVARIANT to,
+and which inputs should be REJECTED rather than forced into a known class.}
+
+% ============================================================================
+\section{Conclusion}
+\label{sec:conclusion}
+
+\todo{3-4 sentences. The synthesis claim, the single most surprising result,
+and the main limitation (single seed, no error bars, so differences of a point
+or two should not be over-read).}
+
+% ============================================================================
+\bibliographystyle{plain}
+\begin{thebibliography}{9}
+
+\bibitem{geirhos2019}
+R.~Geirhos, P.~Rubisch, C.~Michaelis, M.~Bethge, F.~A. Wichmann, and W.~Brendel.
+\newblock ImageNet-trained CNNs are biased towards texture.
+\newblock In \emph{ICLR}, 2019.
+
+\bibitem{huang2017}
+X.~Huang and S.~Belongie.
+\newblock Arbitrary style transfer in real-time with adaptive instance normalization.
+\newblock In \emph{ICCV}, 2017.
+
+\bibitem{radford2021}
+A.~Radford et~al.
+\newblock Learning transferable visual models from natural language supervision.
+\newblock In \emph{ICML}, 2021.
+
+\bibitem{long2015}
+M.~Long, Y.~Cao, J.~Wang, and M.~I. Jordan.
+\newblock Learning transferable features with deep adaptation networks.
+\newblock In \emph{ICML}, 2015.
+
+\bibitem{ganin2016}
+Y.~Ganin et~al.
+\newblock Domain-adversarial training of neural networks.
+\newblock \emph{JMLR}, 17(59):1--35, 2016.
+
+\bibitem{long2018}
+M.~Long, Z.~Cao, J.~Wang, and M.~I. Jordan.
+\newblock Conditional adversarial domain adaptation.
+\newblock In \emph{NeurIPS}, 2018.
+
+\bibitem{foret2021}
+P.~Foret, A.~Kleiner, H.~Mobahi, and B.~Neyshabur.
+\newblock Sharpness-aware minimization for efficiently improving generalization.
+\newblock In \emph{ICLR}, 2021.
+
+\bibitem{zhou2021}
+D.-W. Zhou, H.-J. Ye, and D.-C. Zhan.
+\newblock Learning placeholders for open-set recognition.
+\newblock In \emph{CVPR}, 2021.
+
+\bibitem{hendrycks2017}
+D.~Hendrycks and K.~Gimpel.
+\newblock A baseline for detecting misclassified and out-of-distribution examples.
+\newblock In \emph{ICLR}, 2017.
+
+\bibitem{liu2020}
+W.~Liu, X.~Wang, J.~Owens, and Y.~Li.
+\newblock Energy-based out-of-distribution detection.
+\newblock In \emph{NeurIPS}, 2020.
+
+\bibitem{vaze2022}
+S.~Vaze, K.~Han, A.~Vedaldi, and A.~Zisserman.
+\newblock Open-set recognition: a good closed-set classifier is all you need?
+\newblock In \emph{ICLR}, 2022.
+
+\bibitem{cubuk2020}
+E.~D. Cubuk, B.~Zoph, J.~Shlens, and Q.~V. Le.
+\newblock RandAugment: practical automated data augmentation.
+\newblock In \emph{CVPR Workshops}, 2020.
+
+\end{thebibliography}
+
+\end{document}
