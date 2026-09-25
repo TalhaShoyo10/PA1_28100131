@@ -5,7 +5,7 @@
 % SCAFFOLD. Every \todo{...} marks text YOU write. Tables and figures are
 % pre-filled from the committed results so no number needs transcribing.
 %
-% Compile on Overleaf: upload this file, neurips_2024.sty from PA0, and the
+% Compile on Overleaf: upload this file, neurips_2026.sty from PA0, and the
 % figures/ directory from the repository root.
 %
 % 8 PAGES of main content. References do not count. Watch the budget:
@@ -14,10 +14,11 @@
 
 \documentclass{article}
 
-% Use \usepackage{neurips_2024} for the submission version (adds line numbers
-% and the "Submitted to" footer). \usepackage[final]{neurips_2024} for camera
-% ready. Check which the PA0 handout specifies.
-\usepackage[final]{neurips_2024}
+% The 2026 style REQUIRES a track option alongside final: without one,
+% \@trackname is undefined and the footer expansion fails. "main" is the main
+% conference track. Drop "final" for the submission style (line numbers plus a
+% "Submitted to" footer) if the PA0 handout asks for that instead.
+\usepackage[final,main]{neurips_2026}
 
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
