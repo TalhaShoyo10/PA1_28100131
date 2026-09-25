@@ -54,13 +54,34 @@
 
 % ============================================================================
 \begin{abstract}
-\todo{5-7 sentences. One line on the unifying question: what should a
-representation preserve, what should it discard, when should it refuse to
-answer. Then one line per task naming the headline finding. Candidates for
-the strongest three: alignment strength anti-correlated with transfer;
-DAN-DG at the mandated lambda reached near-chance domain separability and
-below-chance Sketch accuracy; PROSER optimised its placeholder objective to
-zero and still underperformed its own baseline.}
+In theory, for an input to be classified as accurately as possible, the
+representation it receives via a learned model should encode information
+sensitive to the nature of its true label, and not information that is
+useless to its correct classification. We test this across four regimes:
+controlled interventions on frozen backbones (STL-10), unsupervised domain
+adaptation and domain generalization (PACS), and open-set recognition
+(CIFAR-10/100). We applied two independent interventions on STL-10, one
+targeting colour reliance and one targeting shape versus texture, and both
+ordered the backbones identically by decreasing reliance on surface
+appearance: colour gap $-2.6 / -1.0 / -0.2$ and shape bias
+$56.21 / 79.31 / 82.78$ for ResNet-50, ViT-B/16 and CLIP ViT-B/32. Using
+PACS with Sketch as the target domain, DAN reduced domain separability to
+$83.52$ but had the worst target accuracy at $58.56$, while DANN left it at
+$98.63$ and had the best target accuracy at $80.55$. In the same setting but
+with no Sketch image used during training, the model with the lowest domain
+separability, DAN-DG at $54.67$ against a $33.3$ chance floor, had the worst
+target accuracy at $4.07$, below the $14.3$ floor.
+%
+% REWRITE THE NEXT TWO SENTENCES IN YOUR OWN WORDS BEFORE SUBMITTING.
+% They are drafts, not your phrasing.
+%
+In open-set recognition on CIFAR-10 with CIFAR-100 unknowns, PROSER drove its
+placeholder objective to $0.0000$ by epoch 30 yet scored $85.58$ all-unknown
+AUROC, below the $86.01$ of the vanilla baseline it was fine-tuned from.
+Across Tasks 2--4, each method optimised its proxy objective successfully and
+performed worse on the goal that proxy was meant to serve, suggesting that
+progress on an alignment or rejection surrogate is not evidence of progress
+on the task itself.
 
 \textbf{Repository:} \url{https://github.com/TalhaShoyo10/PA1_28100131}
 % ^ The PDF requires the repository link at the END of the abstract.
