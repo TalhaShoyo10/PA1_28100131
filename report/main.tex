@@ -32,6 +32,7 @@
 \usepackage{graphicx}
 \usepackage{subcaption}
 \usepackage{xcolor}
+\usepackage{enumitem}   % tight lists for the research-question grouping
 
 % Draft helper: shows what still needs writing. DELETE the definition and
 % replace with \newcommand{\todo}[1]{} before submitting, to be certain no
@@ -245,24 +246,28 @@ asks you to spend space on evidence instead.}
 
 \begin{table}[t]
   \centering
-  \caption{PACS with Sketch as target. Domain separability is a
-  logistic-regression probe on frozen features, binary source-vs-target,
+  \caption{PACS with Sketch as target. Each source validation domain is
+  reported before the mean, since pooling can hide source-specific behaviour.
+  Domain separability is a logistic-regression probe on frozen features,
+  binary source-vs-target,
   chance $=50.0$. $\Delta$ is the change in target accuracy relative to
   Source-only. The three $\lambda$ rows are the controlled alignment-strength
   study; $\lambda=1$ coincides with DAN by construction.}
   \label{tab:t2-main}
-  \begin{tabular}{lccccc}
+  \begin{tabular}{lcccccccc}
     \toprule
-    Method & Mean source & Worst source & Separability & Target & $\Delta$ \\
+    & \multicolumn{3}{c}{Source validation} & & & & & \\
+    \cmidrule(lr){2-4}
+    Method & Photo & Art & Cart. & Mean & Worst & Separ. & Target & $\Delta$ \\
     \midrule
-    Source-only & 93.88 & 89.51 & 99.59 & 71.47 & --- \\
-    DAN         & 94.69 & 92.93 & 83.52 & 58.56 & $-12.90$ \\
-    DANN        & 93.91 & 92.93 & 98.63 & 80.55 & $+9.09$ \\
-    CDAN        & 92.06 & 89.51 & 98.49 & 65.05 & $-6.41$ \\
+    Source-only & 97.90 & 89.51 & 94.24 & 93.88 & 89.51 & 99.59 & 71.47 & --- \\
+    DAN         & 96.70 & 92.93 & 94.46 & 94.69 & 92.93 & 83.52 & 58.56 & $-12.90$ \\
+    DANN        & 95.20 & 92.93 & 93.60 & 93.91 & 92.93 & 98.63 & 80.55 & $+9.09$ \\
+    CDAN        & 96.70 & 89.51 & 89.98 & 92.06 & 89.51 & 98.49 & 65.05 & $-6.41$ \\
     \midrule
-    DAN $\lambda=0.1$  & 95.10 & --- & 97.39 & 70.86 & $-0.61$ \\
-    DAN $\lambda=1.0$  & 94.69 & --- & 83.52 & 58.56 & $-12.90$ \\
-    DAN $\lambda=10.0$ & 21.68 & --- & 75.55 & 4.07  & $-67.40$ \\
+    DAN $\lambda=0.1$  & --- & --- & --- & 95.10 & --- & 97.39 & 70.86 & $-0.61$ \\
+    DAN $\lambda=1.0$  & --- & --- & --- & 94.69 & --- & 83.52 & 58.56 & $-12.90$ \\
+    DAN $\lambda=10.0$ & --- & --- & --- & 21.68 & --- & 75.55 & 4.07  & $-67.40$ \\
     \bottomrule
   \end{tabular}
 \end{table}
