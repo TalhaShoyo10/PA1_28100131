@@ -414,13 +414,48 @@ unknowns, evaluation only. Logits and features cached once so every score sees
 identical model outputs. Thresholds calibrated at 95\% known acceptance on
 CIFAR-10 validation.}
 
-\todo{TABLE 1: post-hoc scores on the frozen vanilla model -- MSP, MLS,
-Energy, Mahalanobis, each with near/far/all AUROC and calibrated rejection.
-Source: task4/results/posthoc\_score\_comparison.csv}
+\begin{table}[t]
+  \centering
+  \small
+  \caption{Post-hoc scores on the frozen vanilla model. AUROC is reported for
+  near, far and all unknowns. Rejection is measured at the threshold calibrated
+  to 95\% known acceptance on CIFAR-10 validation.}
+  \label{tab:t4-posthoc}
+  \begin{tabular}{lccccc}
+    \toprule
+    & \multicolumn{3}{c}{AUROC (\%)} & \multicolumn{2}{c}{Rejection (\%)} \\
+    \cmidrule(lr){2-4} \cmidrule(lr){5-6}
+    Score & Near & Far & All & Near & Far \\
+    \midrule
+    MSP         & 81.56 & 90.18 & 85.87 & 26.12 & 40.25 \\
+    MLS         & 79.95 & 90.05 & 85.00 & 30.50 & 49.50 \\
+    Energy      & 79.95 & 90.11 & 85.03 & 31.25 & 50.88 \\
+    Mahalanobis & 79.80 & 92.21 & \textbf{86.01} & 26.00 & 51.88 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
 
-\todo{TABLE 2: Vanilla, GCSC and PROSER with CSA and near/far metrics, MLS as
-the common score, plus a row for PROSER's placeholder score.
-Source: task4/results/trained\_model\_comparison.csv}
+\begin{table}[t]
+  \centering
+  \small
+  \caption{Vanilla, GCSC and PROSER compared with MLS as the common score,
+  plus PROSER's own placeholder-based score as an additional row. CSA is
+  closed-set accuracy on CIFAR-10 test, computed from the ten known-class
+  logits alone.}
+  \label{tab:t4-models}
+  \begin{tabular}{llcccccc}
+    \toprule
+    & & & \multicolumn{3}{c}{AUROC (\%)} & \multicolumn{2}{c}{Rejection (\%)} \\
+    \cmidrule(lr){4-6} \cmidrule(lr){7-8}
+    Model & Score & CSA & Near & Far & All & Near & Far \\
+    \midrule
+    Vanilla & MLS    & 94.83 & 79.95 & 90.05 & 85.00 & 30.50 & 49.50 \\
+    GCSC    & MLS    & \textbf{95.02} & 82.02 & 91.89 & \textbf{86.95} & 35.62 & 60.50 \\
+    PROSER  & MLS    & 94.58 & 78.80 & 88.21 & 83.51 & 29.25 & 46.00 \\
+    PROSER  & PROSER & 94.58 & 76.47 & 91.87 & 84.17 & 25.50 & 57.50 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
 
 \begin{figure}[t]
   \centering
