@@ -106,17 +106,6 @@ class CLIPBackbone(FrozenBackbone):
                 "Install it with: pip install open_clip_torch"
             ) from exc
 
-        # OpenAI's CLIP was trained with QuickGELU activations. open_clip >= 2.24
-        # exposes that as a SEPARATE architecture, "ViT-B-32-quickgelu", so the
-        # plain name builds the non-QuickGELU variant and loads the OpenAI
-        # weights into it anyway -- a silently wrong forward pass, since trained
-        # weights then run through a different activation. open_clip warns but
-        # proceeds.
-        #
-        # The architecture is selected by NAME: create_model_and_transforms has
-        # no quick_gelu parameter, so passing one is swallowed by **kwargs and
-        # does nothing. The mandated ViT-B-32 / pretrained='openai' pairing is
-        # unchanged; this selects the variant those weights were trained as.
         resolved_name = model_name
         if pretrained == "openai" and not model_name.endswith("-quickgelu"):
             candidate = f"{model_name}-quickgelu"

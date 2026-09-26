@@ -44,7 +44,6 @@ def adaptive_instance_normalization(
     return normalized * style_std + style_mean
 
 
-#: Index one past the final relu4_1 module in the full VGG-19 definition.
 RELU4_1_CUTOFF = 31
 
 
@@ -164,9 +163,6 @@ class AdaINStyleTransfer(nn.Module):
                     "fetch them manually (see README.md)."
                 )
 
-        # The published checkpoint holds the COMPLETE VGG-19, so it is loaded
-        # in full and then truncated at relu4_1. Slicing first would leave the
-        # deeper layers as unexpected keys.
         full_vgg = build_full_vgg()
         full_vgg.load_state_dict(torch.load(vgg_path, map_location="cpu"))
         self.encoder = nn.Sequential(*list(full_vgg)[:RELU4_1_CUTOFF])

@@ -85,4 +85,9 @@ task1/models/weights/
 ATML-PA1.pdf
 
 # Overleaf upload bundle (regenerate; do not track)
-report/overleaf_upload.zip
+
+# --- Report sources: the submitted PDF goes to LMS, not the repository ---
+report/
+
+# --- Placeholder files ---
+.gitkeep

@@ -1,103 +1,63 @@
 # Beyond IID — ATML PA1
 
-Experiments on learning beyond the IID, closed-set setting: inductive biases and
-representations (Task 1), unsupervised domain adaptation (Task 2), domain
-generalization (Task 3), and open-set recognition (Task 4).
+Four studies on what happens when the IID, closed-set assumption breaks.
 
-Every experiment is configuration-driven, seeded with **6304**, and writes
-machine-readable results that trace back to the command and commit that
-produced them.
+| Task | Setting | Dataset | Methods |
+|---|---|---|---|
+| 1 | Inductive biases | STL-10 | Frozen ResNet-50, ViT-B/16, CLIP ViT-B/32 |
+| 2 | Unsupervised domain adaptation | PACS (Sketch target) | Source-only, DAN, DANN, CDAN |
+| 3 | Domain generalization | PACS (Sketch unseen) | ERM, DAN-DG, SAM |
+| 4 | Open-set recognition | CIFAR-10 / CIFAR-100 | Vanilla, GCSC, PROSER |
+
+Every run is configuration-driven, seeded with **6304**, and writes results
+that trace back to the command and commit that produced them.
 
 ---
 
-## Quick start
+## Setup
 
 ```bash
-git clone <repository-url>
-cd pa1-beyond-iid
+git clone https://github.com/TalhaShoyo10/PA1_28100131.git
+cd PA1_28100131
 pip install -r requirements.txt
-python -m pytest tests/ -q          # 379 tests, no datasets required
+python -m pytest tests/ -q          # 379 tests, no datasets needed
 ```
-
-Run any task with an explicit config:
-
-```bash
-python task2/train.py --config task2/configs/dan.yaml
-```
-
-Add `--smoke` for a fast reduced-scale sanity check (never for reported results).
-
----
-
-## Repository layout
-
-```text
-common/      seed, metrics, logging, config loader, plotting
-scripts/     make_figures.py — figures built from committed results
-shared/      PACS dataset + protocol, multi-kernel MMD  (Tasks 2 and 3)
-task1/       inductive biases: interventions, backbones, representation analysis
-task2/       UDA: Source-only, DAN, DANN, CDAN
-task3/       DG: ERM (reused), DAN-DG, SAM
-task4/       OSR: Vanilla, GCSC, PROSER, post-hoc scores
-tests/       379 tests covering protocol compliance and method behaviour
-figures/     generated figures
-```
-
-Raw datasets and checkpoints are **not** committed. See *Datasets* below.
 
 ---
 
 ## Datasets
 
-| Dataset | Used by | How to obtain |
-|---|---|---|
-| STL-10 | Task 1 | Auto-downloads via torchvision to `data/stl10` |
-| PACS | Tasks 2, 3 | **Manual** — see below |
-| CIFAR-10 / CIFAR-100 | Task 4 | Auto-downloads via torchvision to `data/cifar10`, `data/cifar100` |
+STL-10, CIFAR-10 and CIFAR-100 download automatically on first use.
 
-### PACS
+**PACS must be downloaded manually** (no torchvision loader). Arrange it as:
 
-PACS has no torchvision loader. Download it (e.g. from the public Kaggle mirror)
-and arrange it as:
-
-```text
+```
 data/PACS/
   photo/dog/*.jpg
   art_painting/dog/*.jpg
   cartoon/dog/*.jpg
-  sketch/dog/*.jpg
-  ... (7 classes x 4 domains)
+  sketch/dog/*.png
+  ... 7 classes x 4 domains
 ```
 
-Then generate the shared split manifest, which both Tasks 2 and 3 reuse:
+Then build the split manifest that Tasks 2 and 3 share:
 
 ```bash
 python shared/make_splits.py --config task2/configs/base.yaml
 ```
 
-### AdaIN weights (Task 1 cue conflicts)
-
-Pretrained VGG encoder and decoder weights (~110 MB total) download
-automatically on first use. To fetch them manually:
-
-```bash
-mkdir -p task1/models/weights
-curl -L -o task1/models/weights/vgg_normalised.pth   https://github.com/naoto0804/pytorch-AdaIN/releases/download/v0.0.0/vgg_normalised.pth
-curl -L -o task1/models/weights/decoder.pth   https://github.com/naoto0804/pytorch-AdaIN/releases/download/v0.0.0/decoder.pth
-```
-
-These weights are not authored here — see *Attribution* below. They are
-gitignored and must not be committed.
+Task 1's cue conflicts need pretrained AdaIN weights, which download
+automatically on first use.
 
 ---
 
 ## Reproducing each task
 
-### Task 1 — Inductive Biases and Representations
+Every script takes `--config` and accepts `--set key=value` to override any
+config entry. Add `--smoke` for a fast sanity check; no reported number comes
+from a smoke run.
 
-STL-10, three frozen backbones (ResNet-50, ViT-B/16, CLIP ViT-B/32) plus CLIP
-zero-shot. Interventions are generated **once** on a common 224x224 canvas so
-every model receives byte-identical images.
+**Task 1**
 
 ```bash
 python task1/data/make_subset.py        --config task1/configs/base.yaml
@@ -105,130 +65,124 @@ python task1/data/make_cue_conflicts.py --config task1/configs/interventions.yam
 python task1/scripts/run_task1.py       --config task1/configs/interventions.yaml
 ```
 
-Outputs: `task1/results/` (intervention metrics, representation stability,
-translation curves, shape bias and coverage, cue-conflict manifest and example
-decisions) and `figures/task1/` (t-SNE plots, translation curve).
-
-### Task 2 — Unsupervised Domain Adaptation
-
-PACS, Sketch as the unlabeled target. Train each method, then evaluate once
-every checkpoint is frozen.
+**Task 2**
 
 ```bash
 for m in source_only dan dann cdan; do
   python task2/train.py --config task2/configs/$m.yaml
 done
-python task2/evaluate_final.py --config task2/configs/base.yaml
 
-# Controlled study
 for lam in 0.1 1.0 10.0; do
   python task2/train.py --config task2/configs/dan_lambda_study.yaml \
       --set method.lambda_mmd=$lam run_name=dan_lambda$lam
 done
+
+python task2/evaluate_final.py --config task2/configs/dan.yaml \
+    --runs source_only dan dann cdan dan_lambda0.1 dan_lambda1.0 dan_lambda10.0
 ```
 
-### Task 3 — Domain Generalization
+Pass all seven run names. `final_comparison.csv` is rebuilt on each call, and
+the target-accuracy change is computed only when `source_only` is included.
 
-Sketch is unavailable to training, diagnostics and model selection. ERM **reuses
-Task 2's Source-only checkpoint** rather than retraining.
+**Task 3**
 
 ```bash
 python task3/train.py --config task3/configs/dan_dg.yaml
 python task3/train.py --config task3/configs/sam.yaml
-python task3/evaluate_sketch.py --config task3/configs/base.yaml   # loads Sketch
 
 for lam in 0.1 1.0 10.0; do
   python task3/train.py --config task3/configs/dan_dg_lambda_study.yaml \
       --set method.lambda_dg=$lam run_name=dan_dg_lambda$lam
 done
+
+python task3/evaluate_sketch.py --config task3/configs/base.yaml
 ```
 
-### Task 4 — Open-Set Recognition
+ERM is not retrained. It reuses Task 2's Source-only checkpoint, so run Task 2
+first. `evaluate_sketch.py` is the only script permitted to load Sketch.
 
-CIFAR-10 known, fixed CIFAR-100 classes as near/far unknowns (evaluation only).
+**Task 4**
 
 ```bash
 python task4/train.py --config task4/configs/vanilla.yaml
 python task4/train.py --config task4/configs/gcsc.yaml
-python task4/train.py --config task4/configs/proser.yaml   # inits from vanilla
+python task4/train.py --config task4/configs/proser.yaml   # starts from vanilla
 
 for m in vanilla gcsc proser; do
   python task4/extract_outputs.py --config task4/configs/$m.yaml
 done
+
 python task4/evaluate_osr.py --config task4/configs/vanilla.yaml
 ```
 
-### Figures
-
-The evaluation scripts emit the t-SNE plots (Task 1) and the score
-distributions (Task 4). The remaining figures are built from the committed
-CSVs, so this needs no GPU and no re-evaluation:
+**Figures**
 
 ```bash
 python scripts/make_figures.py
 ```
 
-Writes the Task 1 translation curve and the Task 2, λ-study and Task 3
-training curves under `figures/`.
+Builds the translation curve and the training-curve figures from the committed
+CSVs. No GPU needed.
 
 ---
 
-## Information boundaries
+## Layout
 
-These are protocol requirements, enforced in code and covered by tests:
+```
+common/      seed, metrics, logging, config loader, plotting
+shared/      PACS dataset and protocol, multi-kernel MMD  (Tasks 2 and 3)
+scripts/     make_figures.py
+task1/       interventions, backbones, representation analysis
+task2/       Source-only, DAN, DANN, CDAN
+task3/       ERM (reused), DAN-DG, SAM
+task4/       Vanilla, GCSC, PROSER, post-hoc scores
+tests/       379 tests covering protocol compliance and method behaviour
+figures/     generated figures
+```
 
-| Task | Rule | Enforcement |
-|---|---|---|
-| 2 | Target **labels** never influence training or checkpoint selection | Selection uses mean source-validation macro-F1 only |
-| 3 | No Sketch image reaches training, diagnostics or selection | `TargetAccessViolation`; `target_batch == 0`; only `evaluate_sketch.py` may load it |
-| 3 | ERM is not retrained | `task3/train.py` refuses `erm.yaml` and points at Task 2's checkpoint |
-| 4 | CIFAR-100 is evaluation-only | Thresholds calibrate on CIFAR-10 validation; only the CIFAR-100 test split is read |
-| 1 | Cue-conflict filtering is model-blind | The rejection rule accepts images only — no model or prediction argument exists |
+Results live under each task's `results/` directory. Datasets and checkpoints
+are not committed.
 
 ---
 
 ## Reproducibility
 
-- **Seed 6304** for every split, subset, permutation and comparison.
-- Each run writes `run.json` with the full config, metrics, git commit
-  (`-dirty` when the tree has uncommitted changes), library versions and device.
-- Split manifests are committed, so the same seed selects the same images on any
-  machine.
-- Tasks 2 and 3 share one protocol module; a test asserts they agree on 20
-  fields, because Task 2's Source-only checkpoint **is** Task 3's ERM baseline.
+- Seed 6304 for every split, subset and permutation.
+- Split manifests are committed, so the same images are selected on any
+  machine: `shared/splits/`, `task1/data/eval_subset_seed6304.json`,
+  `task4/data/cifar10_split_seed6304.json`.
+- Every run writes `run.json` with its resolved config, git commit, library
+  versions and device.
+- Tasks 2 and 3 share one protocol module, so their results are directly
+  comparable. Task 2's Source-only checkpoint is Task 3's ERM baseline.
 
-Results reported in the write-up come from full runs, never `--smoke`.
+### Information boundaries
+
+Enforced in code and covered by tests:
+
+| Task | Rule |
+|---|---|
+| 2 | Checkpoints selected on source-validation macro-F1 only |
+| 3 | Training fails unless target access is disabled; only `evaluate_sketch.py` loads Sketch |
+| 3 | ERM is loaded, never retrained |
+| 4 | Thresholds calibrate on CIFAR-10 validation; CIFAR-100 is read only at evaluation |
+| 1 | Cue-conflict filtering uses image statistics, with no model consulted |
 
 ---
 
 ## Attribution
 
-Implementations are original unless listed here.
+Implementations are original except where noted.
 
-**AdaIN style transfer** (`task1/models/adain.py`) — the AdaIN operation, VGG
-encoder truncation and decoder architecture are reimplemented from Huang &
-Belongie (2017), *Arbitrary Style Transfer in Real-time with Adaptive Instance
-Normalization* (ICCV 2017). The **pretrained encoder and decoder weights** are
-downloaded from the public PyTorch port
-[`naoto0804/pytorch-AdaIN`](https://github.com/naoto0804/pytorch-AdaIN)
+**AdaIN style transfer** (`task1/models/adain.py`) reimplements Huang &
+Belongie (2017). The pretrained encoder and decoder weights come from
+[naoto0804/pytorch-AdaIN](https://github.com/naoto0804/pytorch-AdaIN)
 (release `v0.0.0`, MIT licence) and are not authored here.
 
-**Methods implemented from their papers**: DANN (Ganin et al., 2016), CDAN
-(Long et al., 2018), DAN/MMD (Long et al., 2015), SAM (Foret et al., 2021),
-PROSER (Zhou et al., 2021), MSP (Hendrycks & Gimpel, 2017), Energy (Liu et al.,
-2020), MLS (Vaze et al., 2022).
+**Methods implemented from their papers:** DAN (Long et al., 2015), DANN
+(Ganin et al., 2016), CDAN (Long et al., 2018), SAM (Foret et al., 2021),
+PROSER (Zhou et al., 2021), MSP (Hendrycks & Gimpel, 2017), Energy (Liu et
+al., 2020), MLS (Vaze et al., 2022), RandAugment (Cubuk et al., 2020).
 
-**Libraries**: PyTorch, torchvision, OpenCLIP, scikit-learn, NumPy, SciPy,
+**Libraries:** PyTorch, torchvision, OpenCLIP, scikit-learn, NumPy, SciPy,
 matplotlib, UMAP.
-
----
-
-## Reproducibility notes
-
-Configuration files under each `task*/configs/` directory carry the full
-protocol for every run, including the rationale for each experimental choice
-and the pre-registered expectations for the controlled studies. They are the
-authoritative record of how each result was produced.
-
-Every run writes a `run.json` alongside its metrics containing the resolved
-config, the git commit, library versions and the device used.
