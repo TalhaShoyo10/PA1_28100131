@@ -91,3 +91,6 @@ report/
 
 # --- Placeholder files ---
 .gitkeep
+
+# --- Colab notebook: environment-specific paths, not a reproduction path ---
+notebooks/
